@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 
@@ -33,6 +35,10 @@ func main() {
 	cmdArg := flag.Arg(0)
 	binArg := flag.Arg(1)
 	if len(os.Args) < 2 || cmdArg == "" || binArg == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+	if cmdArg != "run" && cmdArg != "get" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -75,8 +81,10 @@ func main() {
 		return
 	}
 
-	fmt.Println("run is not supported yet!")
-	os.Exit(1)
+	err = runTool(path, os.Args[3:])
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 func cacheDir(project string) (string, error) {
@@ -223,6 +231,37 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 
 	if err := os.Chmod(binPath, 0o755); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func runTool(path string, args []string) error {
+	cmd := &exec.Cmd{
+		Path:   path,
+		Args:   args,
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	err := cmd.Start()
+	if err == nil {
+		c := make(chan os.Signal, 100)
+		signal.Notify(c)
+		go func() {
+			for sig := range c {
+				cmd.Process.Signal(sig)
+			}
+		}()
+		err = cmd.Wait()
+		signal.Stop(c)
+		close(c)
+	}
+	if err != nil {
+		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() {
+			fmt.Fprint(os.Stderr, err)
+			return err
+		}
 	}
 
 	return nil
