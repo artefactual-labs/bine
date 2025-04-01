@@ -52,7 +52,7 @@ func main() {
 	var b *bin
 	for _, item := range cfg.Bins {
 		if item.Name == binArg {
-			b = &item
+			b = item
 		}
 	}
 	if b == nil {

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/url"
-	"runtime"
 	"strings"
 )
 
@@ -12,16 +11,9 @@ type bin struct {
 	URL          string `json:"url"`
 	Version      string `json:"version"`
 	AssetPattern string `json:"asset_pattern"`
-}
 
-func (b bin) assetName() string {
-	asset := b.AssetPattern
-	asset = strings.ReplaceAll(asset, "{name}", b.Name)
-	asset = strings.ReplaceAll(asset, "{version}", b.Version)
-	asset = strings.ReplaceAll(asset, "{goos}", runtime.GOOS)
-	asset = strings.ReplaceAll(asset, "{goarch}", runtime.GOARCH)
-
-	return asset
+	// asset is computed by the namer when the config is loaded.
+	asset string
 }
 
 func (b bin) downloadURL() (string, error) {
@@ -33,7 +25,7 @@ func (b bin) downloadURL() (string, error) {
 		return "", fmt.Errorf("unsupported host %q", parsedURL.Host)
 	}
 
-	downloadURL := fmt.Sprintf("%s/releases/download/v%s/%s", b.URL, b.Version, b.assetName())
+	downloadURL := fmt.Sprintf("%s/releases/download/v%s/%s", b.URL, b.Version, b.asset)
 
 	return downloadURL, nil
 }
