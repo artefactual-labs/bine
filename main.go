@@ -217,7 +217,7 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 			if path == ".git" {
 				return fs.SkipDir
 			}
-			if !d.IsDir() && filepath.Base(path) == "golangci-lint" {
+			if !d.IsDir() && filepath.Base(path) == filepath.Base(binPath) {
 				f, err = fsys.Open(path)
 				if err != nil {
 					return fmt.Errorf("can't open binary file: %v", err)
