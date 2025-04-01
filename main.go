@@ -20,13 +20,17 @@ import (
 const usage = `Usage:
     bine get [NAME]
     bine run [NAME]
+    bine path
 
-Example:
+Examples:
     $ bine get golangci-lint
-    /home/username/.cache/bine/Linux/x86_64/bin/golangci-lint
+    /home/username/.cache/bine/linux/amd64/bin/golangci-lint
 
     $ bine run golangci-lint
-    ...`
+    ...
+
+    $ bine path
+    /home/username/.cache/bine/linux/amd64/bin`
 
 func main() {
 	flag.Usage = func() { fmt.Fprintf(os.Stderr, "%s\n", usage) }
@@ -34,11 +38,11 @@ func main() {
 
 	cmdArg := flag.Arg(0)
 	binArg := flag.Arg(1)
-	if len(os.Args) < 2 || cmdArg == "" || binArg == "" {
+	if cmdArg == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
-	if cmdArg != "run" && cmdArg != "get" {
+	if cmdArg != "run" && cmdArg != "get" && cmdArg != "path" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -49,6 +53,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	cacheDir, err := cacheDir(cfg.Project)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	if cmdArg == "path" {
+		fmt.Println(filepath.Join(cacheDir, "bin"))
+		return
+	}
+
+	if binArg == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
 	var b *bin
 	for _, item := range cfg.Bins {
 		if item.Name == binArg {
@@ -57,12 +76,6 @@ func main() {
 	}
 	if b == nil {
 		fmt.Println("Command not found.")
-		os.Exit(1)
-	}
-
-	cacheDir, err := cacheDir(cfg.Project)
-	if err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 
