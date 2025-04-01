@@ -2,16 +2,26 @@
 
 **bine** is a simple binary downloader for development environments.
 
-At Artefactual, we manage multiple projects that use Makefiles, similar to those
-suggested in https://github.com/bufbuild/makego, to ensure the availability of
-various binaries locally. bine offers a simpler and more efficient alternative
-based on a simple configuration file.
+## Background
 
-## Usage
+At Artefactual, we manage multiple projects that rely on command-line tools to
+support development workflows. While [`go get -tool`] is a great feature for
+managing Go module-based binaries, it doesn't help with other essential tools
+that aren't written in Go, e.g. `jq`, `shfmt`... that's where `bine` comes in!
+
+## Installation
+
+> [!NOTE]
+> For the time being, precompiled binaries are not available, so you'll need a
+> Go compiler to install bine.
 
 You can install `bine` using `go get`:
 
     go get -tool github.com/artefactual-labs/bine@latest
+
+This way the tool is managed as part of your module dependencies.
+
+## Configuration
 
 Create you configuration file, e.g.:
 
@@ -39,4 +49,7 @@ Or use `bine` to get the path to the binary:
     $ go tool bine get golangci-lint
     /home/ethan/.cache/bine/bine/linux/amd64/bin/golangci-lint
 
-For more examples, see the [`examples`](./examples) folder.
+For more examples, see the [`examples`] folder.
+
+[`go get -tool`]: https://go.dev/doc/toolchain#go-get-tool
+[`examples`]: ./examples
