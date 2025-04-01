@@ -1,5 +1,6 @@
 #!/usr/bin/env -S just --justfile
 
+# Lazy evaluation of variables is not supported yet!
 GOLANGCI_LINT := `go tool bine get golangci-lint`
 GO_MOD_OUTDATED := `go tool bine get go-mod-outdated`
 
