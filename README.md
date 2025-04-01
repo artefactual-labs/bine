@@ -38,3 +38,5 @@ Or use `bine` to get the path to the binary:
 
     $ go tool bine get golangci-lint
     /home/ethan/.cache/bine/bine/linux/amd64/bin/golangci-lint
+
+For more examples, see the [`examples`](./examples) folder.
