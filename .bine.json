@@ -6,6 +6,12 @@
             "url": "https://github.com/golangci/golangci-lint",
             "version": "2.0.2",
             "asset_pattern": "{name}-{version}-{goos}-{goarch}.tar.gz"
+        },
+        {
+            "name": "go-mod-outdated",
+            "url": "https://github.com/psampaz/go-mod-outdated",
+            "version": "0.9.0",
+            "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz"
         }
     ]
 }
