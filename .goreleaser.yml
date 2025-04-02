@@ -26,4 +26,6 @@ archives:
 checksum:
   name_template: "checksums.txt"
 changelog:
-  disable: true
+  use: github
+  abbrev: 8
+  groups: []
