@@ -1,4 +1,6 @@
 {
+    // Project name (mandatory). This is used when determining the installation
+    // directory, e.g. `/home/jesus/.cache/bine/<project>/...`.
     "project": "bine",
     "bins": [
         {

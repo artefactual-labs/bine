@@ -1,6 +1,7 @@
 {
     "project": "bine-examples-make",
     "bins": [
+        // Asset-based binaries.
         {
             "name": "tparse",
             "url": "https://github.com/mfridman/tparse",
@@ -13,6 +14,7 @@
             "version": "0.9.0",
             "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz"
         },
+        // Go-based binaries.
         {
             "name": "goa",
             "go_package": "goa.design/goa/v3/cmd/goa",

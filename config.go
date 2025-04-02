@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/tailscale/hujson"
 )
 
 type config struct {
@@ -34,12 +36,12 @@ func loadConfig() (*config, error) {
 			if err != nil {
 				return nil, err
 			}
-			var cfg config
-			if err := json.Unmarshal(data, &cfg); err != nil {
+			cfg, err := unmarshal(data)
+			if err != nil {
 				return nil, err
 			}
-			namer.run(&cfg)
-			return &cfg, nil
+			namer.run(cfg)
+			return cfg, nil
 		}
 
 		parentDir := filepath.Dir(curDir)
@@ -50,6 +52,20 @@ func loadConfig() (*config, error) {
 	}
 
 	return nil, errors.New("configuration file .bine.json not found")
+}
+
+func unmarshal(b []byte) (*config, error) {
+	b, err := hujson.Standardize(b)
+	if err != nil {
+		return nil, err
+	}
+
+	var c config
+	if err := json.Unmarshal(b, &c); err != nil {
+		return nil, err
+	}
+
+	return &c, nil
 }
 
 // namer computes the asset names defined in the configuration.
