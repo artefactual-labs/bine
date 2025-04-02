@@ -7,13 +7,22 @@ import (
 )
 
 type bin struct {
-	Name         string `json:"name"`
-	URL          string `json:"url"`
-	Version      string `json:"version"`
-	AssetPattern string `json:"asset_pattern"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+
+	// Fields for asset-based downloads.
+	URL          string `json:"url,omitempty"`
+	AssetPattern string `json:"asset_pattern,omitempty"`
+
+	// Field for go-based installs.
+	GoPackage string `json:"go_package,omitempty"`
 
 	// asset is computed by the namer when the config is loaded.
 	asset string
+}
+
+func (b bin) goPkg() bool {
+	return b.GoPackage != ""
 }
 
 func (b bin) downloadURL() (string, error) {

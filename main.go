@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -95,7 +96,7 @@ func main() {
 	client.Logger = nil
 	client.RetryMax = 3
 
-	path, err := download(client.StandardClient(), b, cacheDir)
+	path, err := ensureInstalled(client.StandardClient(), b, cacheDir)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -142,7 +143,7 @@ func cached(binPath, versionMarker string) bool {
 	return true
 }
 
-func download(client *http.Client, b *bin, cacheDir string) (string, error) {
+func ensureInstalled(client *http.Client, b *bin, cacheDir string) (string, error) {
 	ctx := context.Background()
 
 	binDir := filepath.Join(cacheDir, "bin")
@@ -161,6 +162,16 @@ func download(client *http.Client, b *bin, cacheDir string) (string, error) {
 	}
 	if err := os.MkdirAll(versionsDir, 0o750); err != nil {
 		return "", fmt.Errorf("failed to create versions directory: %v", err)
+	}
+
+	if b.goPkg() {
+		if err := goInstall(ctx, b, binDir); err != nil {
+			return "", fmt.Errorf("failed to install Go tool: %v", err)
+		}
+		if err := markVersion(versionMarker); err != nil {
+			return "", err
+		}
+		return binPath, nil
 	}
 
 	downloadURL, err := b.downloadURL()
@@ -198,14 +209,54 @@ func download(client *http.Client, b *bin, cacheDir string) (string, error) {
 		return "", fmt.Errorf("download failed: %v", err)
 	}
 
-	// Create version marker file to indicate this version is installed.
-	markerFile, err := os.Create(versionMarker)
-	if err != nil {
-		return "", fmt.Errorf("failed to create version marker: %v", err)
+	if err := markVersion(versionMarker); err != nil {
+		return "", err
 	}
-	markerFile.Close()
 
 	return binPath, nil
+}
+
+func markVersion(path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create version marker: %v", err)
+	}
+	f.Close()
+
+	return nil
+}
+
+// goInstall installs a Go tool using 'go install'.
+//
+// TODO: honour binPath - name the binary following the user's preference.
+func goInstall(ctx context.Context, b *bin, binDir string) error {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		return fmt.Errorf("cannot find 'go' command: %v", err)
+	}
+
+	packageName := fmt.Sprintf("%s@%s", b.GoPackage, b.Version)
+
+	cmd := exec.CommandContext(ctx, goBin, "install", packageName)
+
+	binDir, err = filepath.Abs(binDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for bin directory %s: %w", binDir, err)
+	}
+	cmd.Env = append(os.Environ(), "GOBIN="+binDir)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		msg := stderr.String()
+		if msg == "" {
+			msg = "(no stderr output)"
+		}
+		return fmt.Errorf("`go install %s` failed: %v\nstderr: %s", packageName, err, msg)
+	}
+
+	return nil
 }
 
 func extract(ctx context.Context, osf *os.File, binPath string) error {

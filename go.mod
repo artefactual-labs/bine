@@ -1,6 +1,6 @@
 module github.com/artefactual-labs/bine
 
-go 1.24.1
+go 1.24.2
 
 require (
 	github.com/hashicorp/go-retryablehttp v0.7.7

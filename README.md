@@ -62,5 +62,31 @@ Or use bine to get the path to the binary:
 
 For more examples, see the [`examples`] folder.
 
+### Go module support
+
+Besides downloading pre-built assets, bine can also help manage binaries that
+are Go modules installable via `go install`.
+
+For an example, check out how the [`make`] uses bine to install a binary
+directly from a Go module.
+
+### Variable expansion
+
+The `asset_pattern` field in the configuration supports variable expansion to help construct the correct asset filename for download. Bine replaces placeholders within this pattern based on the binary's definition and the environment where `bine` is run.
+
+The following variables are supported:
+
+* `{name}`: The value of the `name` field for the specific binary.
+* `{version}`: The value of the `version` field for the specific binary.
+* `{goos}`: The Go runtime operating system identifier (e.g., `linux`, `darwin`,
+  `windows`). Determined by Go's `runtime.GOOS`.
+* `{goarch}`: The Go runtime architecture identifier (e.g., `amd64`, `arm64`).
+  Determined by Go's `runtime.GOARCH`.
+* `{os}`: The operating system name as reported by `uname -s` (e.g., `Linux`,
+  `Darwin`).
+* `{arch}`: The machine hardware name as reported by `uname -m` (e.g., `x86_64`,
+  `arm64`).
+
 [releases page]: https://github.com/artefactual-labs/bine/releases
 [`examples`]: ./examples
+[`make`]: ./examples/make

@@ -15,6 +15,11 @@ go-mod-outdated:
 	@echo Installing go-mod-outdated...
 	@bine get go-mod-outdated > /dev/null
 
+# Install goa using bine.
+goa:
+	@echo Installing goa...
+	@bine get goa > /dev/null
+
 # Test report.
 test: tparse
 	@echo Running tparse...
@@ -24,3 +29,8 @@ test: tparse
 deps: go-mod-outdated
 	@echo Running go + go-mod-outdated...
 	@go list -u -m -json all | go-mod-outdated -update -direct
+
+# Generate goa code.
+gen-goa: goa
+	@echo Generating goa code...
+	@goa --help

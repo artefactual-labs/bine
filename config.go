@@ -78,6 +78,9 @@ func loadNamer() (*namer, error) {
 
 func (n *namer) run(c *config) {
 	for _, b := range c.Bins {
+		if b.goPkg() {
+			continue
+		}
 		asset := b.AssetPattern
 		asset = strings.ReplaceAll(asset, "{name}", b.Name)
 		asset = strings.ReplaceAll(asset, "{version}", b.Version)
