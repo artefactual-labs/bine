@@ -184,7 +184,7 @@ func ensureInstalled(client *http.Client, b *bin, cacheDir string) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("failed to download asset from %q: %v", downloadURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("download failed: status %s", resp.Status)
 	}
@@ -192,16 +192,16 @@ func ensureInstalled(client *http.Client, b *bin, cacheDir string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	defer os.Remove(f.Name())
+	defer func() { _ = os.Remove(f.Name()) }()
 	if _, err := io.Copy(f, resp.Body); err != nil {
-		f.Close()
+		_ = f.Close()
 		return "", fmt.Errorf("failed to write to temporary file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Reset file pointer to the beginning.
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		f.Close()
+		_ = f.Close()
 		return "", fmt.Errorf("failed to reset file pointer: %v", err)
 	}
 
@@ -221,9 +221,8 @@ func markVersion(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create version marker: %v", err)
 	}
-	f.Close()
 
-	return nil
+	return f.Close()
 }
 
 // goInstall installs a Go tool using 'go install'.
@@ -298,7 +297,7 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 	if err != nil {
 		return err
 	}
-	defer dest.Close()
+	defer func() { _ = dest.Close() }()
 
 	// Copy the contents of the extracted file to the destination.
 	if _, err := io.Copy(dest, f); err != nil {
@@ -326,7 +325,7 @@ func runTool(path string, args []string) error {
 		signal.Notify(c)
 		go func() {
 			for sig := range c {
-				cmd.Process.Signal(sig)
+				_ = cmd.Process.Signal(sig)
 			}
 		}()
 		err = cmd.Wait()
