@@ -15,6 +15,8 @@ import (
 	"runtime"
 	"runtime/debug"
 
+	"golang.org/x/mod/semver"
+
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mholt/archives"
 )
@@ -232,6 +234,13 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		return fmt.Errorf("cannot find 'go' command: %v", err)
+	}
+
+	if b.Version == "" {
+		b.Version = "latest"
+	}
+	if ok := semver.IsValid(b.Version); ok {
+		b.Version = "v" + b.Version
 	}
 
 	packageName := fmt.Sprintf("%s@%s", b.GoPackage, b.Version)
