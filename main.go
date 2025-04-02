@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mholt/archives"
@@ -21,6 +22,7 @@ const usage = `Usage:
     bine get [NAME]
     bine run [NAME]
     bine path
+    bine version
 
 Examples:
     $ bine get golangci-lint
@@ -42,9 +44,19 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	if cmdArg != "run" && cmdArg != "get" && cmdArg != "path" {
+	if cmdArg != "run" && cmdArg != "get" && cmdArg != "path" && cmdArg != "version" {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	if cmdArg == "version" {
+		info, ok := debug.ReadBuildInfo()
+		if !ok {
+			fmt.Println("Version information not available.")
+			os.Exit(1)
+		}
+		fmt.Printf("bine %s (built with %s)\n", info.Main.Version, info.GoVersion)
+		return
 	}
 
 	cfg, err := loadConfig()
