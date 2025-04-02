@@ -30,11 +30,13 @@ func (b bin) downloadURL() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid URL %q: %w", b.URL, err)
 	}
-	if !strings.Contains(parsedURL.Host, "github.com") {
-		return "", fmt.Errorf("unsupported host %q", parsedURL.Host)
-	}
 
-	downloadURL := fmt.Sprintf("%s/releases/download/v%s/%s", b.URL, b.Version, b.asset)
+	var downloadURL string
+	if strings.Contains(parsedURL.Host, "github.com") {
+		downloadURL = fmt.Sprintf("%s/releases/download/v%s/%s", b.URL, b.Version, b.asset)
+	} else {
+		downloadURL = parsedURL.JoinPath(b.asset).String()
+	}
 
 	return downloadURL, nil
 }

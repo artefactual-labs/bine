@@ -7,6 +7,7 @@ require (
 	github.com/mholt/archives v0.1.0
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
 	golang.org/x/mod v0.24.0
+	gotest.tools/v3 v3.5.2
 )
 
 require (
@@ -16,6 +17,7 @@ require (
 	github.com/bodgit/sevenzip v1.6.0 // indirect
 	github.com/bodgit/windows v1.0.1 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
