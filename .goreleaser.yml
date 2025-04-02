@@ -1,0 +1,29 @@
+version: 2
+project_name: bine
+release:
+  github:
+    owner: artefactual-labs
+    name: bine
+builds:
+  - id: bine
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -extldflags="-static"
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    env:
+      - CGO_ENABLED=0
+archives:
+  - formats:
+      - binary
+checksum:
+  name_template: "checksums.txt"
+changelog:
+  disable: true
