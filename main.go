@@ -14,8 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-
-	"golang.org/x/mod/semver"
+	"strings"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mholt/archives"
@@ -239,8 +238,8 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 	if b.Version == "" {
 		b.Version = "latest"
 	}
-	if ok := semver.IsValid(b.Version); ok {
-		b.Version = "v" + b.Version
+	if b.Version != "latest" {
+		b.Version = fmt.Sprintf("v%s", strings.TrimPrefix(b.Version, "v"))
 	}
 
 	packageName := fmt.Sprintf("%s@%s", b.GoPackage, b.Version)

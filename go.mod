@@ -6,7 +6,6 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/mholt/archives v0.1.0
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
-	golang.org/x/mod v0.24.0
 	gotest.tools/v3 v3.5.2
 )
 
