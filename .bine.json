@@ -14,6 +14,12 @@
             "url": "https://github.com/psampaz/go-mod-outdated",
             "version": "0.9.0",
             "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz"
-        }
+        },
+        {
+          "name": "tparse",
+          "url": "https://github.com/mfridman/tparse",
+          "version": "0.13.1",
+          "asset_pattern": "{name}_{goos}_{arch}"
+        },
     ]
 }

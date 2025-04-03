@@ -1,0 +1,20 @@
+version: "2"
+linters:
+  default: standard
+  disable:
+    - errcheck
+formatters:
+  enable:
+    - gci
+    - gofumpt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule
+      no-inline-comments: true
+      no-prefix-comments: true
+      custom-order: true
+    gofumpt:
+      extra-rules: true
