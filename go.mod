@@ -5,6 +5,7 @@ go 1.24.2
 require (
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/mholt/archives v0.1.0
+	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
 	gotest.tools/v3 v3.5.2
 )
