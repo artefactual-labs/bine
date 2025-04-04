@@ -44,5 +44,11 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
-	return bn.Run(name, args[1:])
+	streams := bine.IOStreams{
+		Stdin:  cfg.Stdin,
+		Stdout: cfg.Stdout,
+		Stderr: cfg.Stderr,
+	}
+
+	return bn.Run(name, args[1:], streams)
 }

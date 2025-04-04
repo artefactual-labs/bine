@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -217,37 +216,6 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 
 	if err := os.Chmod(binPath, 0o755); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func runTool(path string, args []string) error {
-	cmd := &exec.Cmd{
-		Path:   path,
-		Args:   args,
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-	err := cmd.Start()
-	if err == nil {
-		c := make(chan os.Signal, 100)
-		signal.Notify(c)
-		go func() {
-			for sig := range c {
-				_ = cmd.Process.Signal(sig)
-			}
-		}()
-		err = cmd.Wait()
-		signal.Stop(c)
-		close(c)
-	}
-	if err != nil {
-		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() {
-			fmt.Fprint(os.Stderr, err)
-			return err
-		}
 	}
 
 	return nil

@@ -8,6 +8,7 @@ import (
 )
 
 type RootConfig struct {
+	Stdin   io.Reader
 	Stdout  io.Writer
 	Stderr  io.Writer
 	Verbose bool
@@ -15,8 +16,9 @@ type RootConfig struct {
 	Command *ff.Command
 }
 
-func New(stdout, stderr io.Writer) *RootConfig {
+func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 	var cfg RootConfig
+	cfg.Stdin = stdin
 	cfg.Stdout = stdout
 	cfg.Stderr = stderr
 	cfg.Flags = ff.NewFlagSet("objectctl")
