@@ -68,7 +68,7 @@ func (b *Bine) Get(name string) (string, error) {
 	return b.install(bin)
 }
 
-func (b *Bine) Run(name string, args []string) error {
+func (b *Bine) Run(name string, args []string, streams IOStreams) error {
 	bin, err := b.load(name)
 	if err != nil {
 		return err
@@ -79,5 +79,5 @@ func (b *Bine) Run(name string, args []string) error {
 		return err
 	}
 
-	return runTool(path, args)
+	return run(path, args, streams)
 }

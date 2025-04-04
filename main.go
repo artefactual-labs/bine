@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	osexec "os/exec"
 
 	"github.com/peterbourgon/ff/v4"
 	"github.com/peterbourgon/ff/v4/ffhelp"
@@ -21,22 +22,29 @@ func main() {
 	var (
 		ctx    = context.Background()
 		args   = os.Args[1:]
+		stdin  = os.Stdin
 		stdout = os.Stdout
 		stderr = os.Stderr
-		err    = exec(ctx, args, stdout, stderr)
+		err    = exec(ctx, args, stdin, stdout, stderr)
 	)
 	switch {
 	case err == nil, errors.Is(err, ff.ErrHelp), errors.Is(err, ff.ErrNoExec):
 		// Nothing to do.
-	case err != nil:
+	default:
+		// Special handling for exec errors when running commands.
+		var exitErr *osexec.ExitError
+		if errors.As(err, &exitErr) {
+			os.Exit(exitErr.ExitCode())
+		}
+
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func exec(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
+func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (err error) {
 	var (
-		root = rootcmd.New(stdout, stderr)
+		root = rootcmd.New(stdin, stdout, stderr)
 		_    = getcmd.New(root)
 		_    = pathcmd.New(root)
 		_    = runcmd.New(root)
@@ -45,7 +53,10 @@ func exec(ctx context.Context, args []string, stdout, stderr io.Writer) (err err
 
 	defer func() {
 		if err != nil {
-			fmt.Fprintf(stderr, "\n%s\n", ffhelp.Command(root.Command))
+			var exitErr *osexec.ExitError
+			if !errors.As(err, &exitErr) {
+				fmt.Fprintf(stderr, "\n%s\n", ffhelp.Command(root.Command))
+			}
 		}
 	}()
 
