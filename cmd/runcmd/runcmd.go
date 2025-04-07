@@ -39,7 +39,8 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 
 	name := args[0]
 
-	bn, err := bine.New()
+	chacheDir := bine.WithCacheDir(cfg.CacheDir)
+	bn, err := bine.NewWithOptions(chacheDir)
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,39 @@ type Bine struct {
 	config *config
 }
 
+// New creates a new Bine instance with default options.
 func New() (*Bine, error) {
+	return newBine(nil)
+}
+
+// NewWithOptions creates a new Bine instance with the given options.
+func NewWithOptions(opts ...Option) (*Bine, error) {
+	optsConfig := options{}
+	for _, opt := range opts {
+		if err := opt(&optsConfig); err != nil {
+			return nil, err
+		}
+	}
+
+	return newBine(&optsConfig)
+}
+
+// Option configures a Bine instance (used by NewWithOptions).
+type Option func(*options) error
+
+type options struct {
+	cacheDirBase string
+}
+
+// WithCacheDir specifies a custom base directory for the bine cache.
+func WithCacheDir(path string) Option {
+	return func(o *options) error {
+		o.cacheDirBase = path
+		return nil
+	}
+}
+
+func newBine(optsConfig *options) (*Bine, error) {
 	client := retryablehttp.NewClient()
 	client.Logger = nil
 	client.RetryMax = 3
@@ -25,14 +57,18 @@ func New() (*Bine, error) {
 		return nil, err
 	}
 
-	cacheDir, err := cacheDir(config.Project)
+	if optsConfig == nil {
+		optsConfig = &options{}
+	}
+
+	cache, err := cacheDir(optsConfig.cacheDirBase, config.Project)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Bine{
-		CacheDir: cacheDir,
-		BinDir:   filepath.Join(cacheDir, "bin"),
+		CacheDir: cache,
+		BinDir:   filepath.Join(cache, "bin"),
 		client:   client,
 		config:   config,
 	}, nil
@@ -64,6 +100,7 @@ func (b *Bine) install(bin *bin) (string, error) {
 	return path, nil
 }
 
+// Get retrieves the path to a binary given its name.
 func (b *Bine) Get(name string) (string, error) {
 	bin, err := b.load(name)
 	if err != nil {
@@ -78,6 +115,7 @@ func (b *Bine) Get(name string) (string, error) {
 	return path, nil
 }
 
+// Run runs a binary given its name and arguments.
 func (b *Bine) Run(name string, args []string, streams IOStreams) error {
 	bin, err := b.load(name)
 	if err != nil {
@@ -97,6 +135,7 @@ func (b *Bine) Run(name string, args []string, streams IOStreams) error {
 	return nil
 }
 
+// Sync installs all binaries defined in the configuration.
 func (b *Bine) Sync() error {
 	for _, item := range b.config.Bins {
 		bin, err := b.load(item.Name)

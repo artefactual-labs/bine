@@ -18,7 +18,7 @@ import (
 	"github.com/mholt/archives"
 )
 
-func cacheDir(project string) (string, error) {
+func cacheDir(baseDir, project string) (string, error) {
 	if project == "" {
 		return "", fmt.Errorf("project name is empty")
 	}
@@ -26,12 +26,16 @@ func cacheDir(project string) (string, error) {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	var err error
+	if baseDir == "" {
+		baseDir, err = os.UserCacheDir()
+		if err != nil {
+			return "", err
+		}
+		baseDir = filepath.Join(baseDir, "bine")
 	}
 
-	cachePath := filepath.Join(homeDir, ".cache", "bine", project, goos, goarch)
+	cachePath := filepath.Join(baseDir, project, goos, goarch)
 
 	return cachePath, nil
 }

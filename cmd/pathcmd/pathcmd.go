@@ -33,7 +33,8 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, _ []string) error {
-	bn, err := bine.New()
+	chacheDir := bine.WithCacheDir(cfg.CacheDir)
+	bn, err := bine.NewWithOptions(chacheDir)
 	if err != nil {
 		return err
 	}
