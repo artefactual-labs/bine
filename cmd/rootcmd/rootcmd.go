@@ -22,7 +22,7 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 	cfg.Stdin = stdin
 	cfg.Stdout = stdout
 	cfg.Stderr = stderr
-	cfg.Flags = ff.NewFlagSet("objectctl")
+	cfg.Flags = ff.NewFlagSet("bine")
 	cfg.Flags.StringVar(&cfg.CacheDir, 0, "cache-dir", "", "Path to the cache directory.")
 	cfg.Flags.AddFlag(ff.FlagConfig{
 		ShortName: 'v',
@@ -36,7 +36,10 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 		ShortHelp: "Simple binary manager for developers.",
 		Usage:     "bine [FLAGS] <SUBCOMMAND> ...",
 		Flags:     cfg.Flags,
-		LongHelp:  "asdf",
+		LongHelp: `bine helps manage external binary tools needed for development projects.
+
+It downloads specified binaries from their sources into a local cache directory,
+ensuring you have the right versions without cluttering your system.`,
 	}
 	return &cfg
 }
