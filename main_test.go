@@ -2,10 +2,9 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	osexec "os/exec"
 	"path/filepath"
 	"runtime"
@@ -16,35 +15,37 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// NOTE: these tests are not reusing your cache directory. It's using the root
+// flag `--cache-dir` to specify a temporary directory for each test. Further
+// work should inject custom config files as opposed to relying on the project's
+// default configuration.
+
 func TestPath(t *testing.T) {
 	var (
-		ctx    = context.Background()
 		stdin  = strings.NewReader("")
 		stdout = &bytes.Buffer{}
 		stderr = &bytes.Buffer{}
 	)
 
-	err := exec(ctx, []string{"path"}, stdin, stdout, stderr)
+	cacheDir, err := runExec(t, []string{"path"}, stdin, stdout, stderr)
 	assert.NilError(t, err)
-	assert.Equal(t, trimmed(t, stdout), binPath(t, ""))
+	assert.Equal(t, trimmed(t, stdout), binPath(t, cacheDir, ""))
 }
 
 func TestGet(t *testing.T) {
 	var (
-		ctx    = context.Background()
 		stdin  = strings.NewReader("")
 		stdout = &bytes.Buffer{}
 		stderr = &bytes.Buffer{}
 	)
 
-	err := exec(ctx, []string{"get", "tparse"}, stdin, stdout, stderr)
+	cacheDir, err := runExec(t, []string{"get", "tparse"}, stdin, stdout, stderr)
 	assert.NilError(t, err)
-	assert.Equal(t, trimmed(t, stdout), binPath(t, "tparse"))
+	assert.Equal(t, trimmed(t, stdout), binPath(t, cacheDir, "tparse"))
 }
 
 func TestRun(t *testing.T) {
 	var (
-		ctx   = context.Background()
 		stdin = strings.NewReader(`{
   "Path": "github.com/mholt/archives",
   "Version": "v0.1.0",
@@ -64,20 +65,19 @@ func TestRun(t *testing.T) {
 		stderr = &bytes.Buffer{}
 	)
 
-	err := exec(ctx, []string{"run", "go-mod-outdated", "-ci"}, stdin, stdout, stderr)
+	_, err := runExec(t, []string{"run", "go-mod-outdated", "-ci"}, stdin, stdout, stderr)
 	assert.Error(t, err, "run: run: exit status 1")
 	assert.Assert(t, errors.As(err, new(*osexec.ExitError)))
 }
 
 func TestSync(t *testing.T) {
 	var (
-		ctx    = context.Background()
 		stdin  = strings.NewReader("")
 		stdout = &bytes.Buffer{}
 		stderr = &bytes.Buffer{}
 	)
 
-	err := exec(ctx, []string{"sync"}, stdin, stdout, stderr)
+	_, err := runExec(t, []string{"sync"}, stdin, stdout, stderr)
 	assert.NilError(t, err)
 	assert.Equal(t, stdout.String(), "")
 	assert.Equal(t, stderr.String(), "")
@@ -85,17 +85,28 @@ func TestSync(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	var (
-		ctx    = context.Background()
 		stdin  = strings.NewReader("")
 		stdout = &bytes.Buffer{}
 		stderr = &bytes.Buffer{}
 	)
 
-	err := exec(ctx, []string{"version"}, stdin, stdout, stderr)
+	_, err := runExec(t, []string{"version"}, stdin, stdout, stderr)
 	assert.NilError(t, err)
 
 	info, _ := debug.ReadBuildInfo()
 	assert.Equal(t, stdout.String(), fmt.Sprintf("bine %s (built with %s)\n", info.Main.Version, info.GoVersion))
+}
+
+func runExec(t *testing.T, args []string, stdin io.Reader, stdout, stderr *bytes.Buffer) (string, error) {
+	t.Helper()
+
+	var (
+		ctx      = t.Context()
+		tempDir  = t.TempDir()
+		fullArgs = append([]string{"--cache-dir", tempDir}, args...)
+	)
+
+	return tempDir, exec(ctx, fullArgs, stdin, stdout, stderr)
 }
 
 func trimmed(t *testing.T, buf *bytes.Buffer) string {
@@ -104,11 +115,8 @@ func trimmed(t *testing.T, buf *bytes.Buffer) string {
 	return strings.TrimSuffix(buf.String(), "\n")
 }
 
-func binPath(t *testing.T, name string) string {
+func binPath(t *testing.T, cacheDir, name string) string {
 	t.Helper()
 
-	cacheDir, err := os.UserCacheDir()
-	assert.NilError(t, err)
-
-	return filepath.Join(cacheDir, "bine", "bine", runtime.GOOS, runtime.GOARCH, "bin", name)
+	return filepath.Join(cacheDir, "bine", runtime.GOOS, runtime.GOARCH, "bin", name)
 }
