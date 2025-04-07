@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	osexec "os/exec"
 	"path/filepath"
 	"runtime"
@@ -16,8 +17,6 @@ import (
 )
 
 func TestPath(t *testing.T) {
-	t.Parallel()
-
 	var (
 		ctx    = context.Background()
 		stdin  = strings.NewReader("")
@@ -27,12 +26,23 @@ func TestPath(t *testing.T) {
 
 	err := exec(ctx, []string{"path"}, stdin, stdout, stderr)
 	assert.NilError(t, err)
-	assert.Assert(t, true == strings.HasSuffix(stdout.String(), filepath.Join(runtime.GOOS, runtime.GOARCH, "bin")+"\n"))
+	assert.Equal(t, trimmed(t, stdout), binPath(t, ""))
+}
+
+func TestGet(t *testing.T) {
+	var (
+		ctx    = context.Background()
+		stdin  = strings.NewReader("")
+		stdout = &bytes.Buffer{}
+		stderr = &bytes.Buffer{}
+	)
+
+	err := exec(ctx, []string{"get", "tparse"}, stdin, stdout, stderr)
+	assert.NilError(t, err)
+	assert.Equal(t, trimmed(t, stdout), binPath(t, "tparse"))
 }
 
 func TestRun(t *testing.T) {
-	t.Parallel()
-
 	var (
 		ctx   = context.Background()
 		stdin = strings.NewReader(`{
@@ -55,13 +65,11 @@ func TestRun(t *testing.T) {
 	)
 
 	err := exec(ctx, []string{"run", "go-mod-outdated", "-ci"}, stdin, stdout, stderr)
-	assert.Error(t, err, "run: exit status 1")
+	assert.Error(t, err, "run: run: exit status 1")
 	assert.Assert(t, errors.As(err, new(*osexec.ExitError)))
 }
 
 func TestVersion(t *testing.T) {
-	t.Parallel()
-
 	var (
 		ctx    = context.Background()
 		stdin  = strings.NewReader("")
@@ -74,4 +82,19 @@ func TestVersion(t *testing.T) {
 
 	info, _ := debug.ReadBuildInfo()
 	assert.Equal(t, stdout.String(), fmt.Sprintf("bine %s (built with %s)\n", info.Main.Version, info.GoVersion))
+}
+
+func trimmed(t *testing.T, buf *bytes.Buffer) string {
+	t.Helper()
+
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+func binPath(t *testing.T, name string) string {
+	t.Helper()
+
+	cacheDir, err := os.UserCacheDir()
+	assert.NilError(t, err)
+
+	return filepath.Join(cacheDir, "bine", "bine", runtime.GOOS, runtime.GOARCH, "bin", name)
 }

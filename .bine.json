@@ -7,19 +7,22 @@
             "name": "golangci-lint",
             "url": "https://github.com/golangci/golangci-lint",
             "version": "2.0.2",
-            "asset_pattern": "{name}-{version}-{goos}-{goarch}.tar.gz"
+            "asset_pattern": "{name}-{version}-{goos}-{goarch}.tar.gz",
+            "checksum": "84081091dd07d507391ba76830555befc87bfe69ccc7c9aa8f2f68200586e4af",
         },
         {
             "name": "go-mod-outdated",
             "url": "https://github.com/psampaz/go-mod-outdated",
             "version": "0.9.0",
-            "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz"
+            "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz",
+            "checksum": "ac5c60ef7350f34d49ebfb6e8e8d907c4c70b73e2141b21a5df7fc733e0fcbf4",
         },
         {
           "name": "tparse",
           "url": "https://github.com/mfridman/tparse",
           "version": "0.13.1",
-          "asset_pattern": "{name}_{goos}_{arch}"
+          "asset_pattern": "{name}_{goos}_{arch}",
+          "checksum": "0ac8e57405de2cc26bd16113be4e55d4135d416353c35d5e6ca6d1f661544dae",
         },
     ]
 }

@@ -48,7 +48,7 @@ func (b *Bine) load(name string) (*bin, error) {
 	}
 
 	if bin == nil {
-		return nil, fmt.Errorf("binary not found")
+		return nil, fmt.Errorf("load: binary not found")
 	}
 
 	return bin, nil
@@ -56,28 +56,43 @@ func (b *Bine) load(name string) (*bin, error) {
 
 // install a binary given its config.
 func (b *Bine) install(bin *bin) (string, error) {
-	return ensureInstalled(b.client.StandardClient(), bin, b.CacheDir)
+	path, err := ensureInstalled(b.client.StandardClient(), bin, b.CacheDir)
+	if err != nil {
+		return "", fmt.Errorf("install: %v", err)
+	}
+
+	return path, nil
 }
 
 func (b *Bine) Get(name string) (string, error) {
 	bin, err := b.load(name)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get: %v", err)
 	}
 
-	return b.install(bin)
+	path, err := b.install(bin)
+	if err != nil {
+		return "", fmt.Errorf("get: %v", err)
+	}
+
+	return path, nil
 }
 
 func (b *Bine) Run(name string, args []string, streams IOStreams) error {
 	bin, err := b.load(name)
 	if err != nil {
-		return err
+		return fmt.Errorf("run: %v", err)
 	}
 
 	path, err := b.install(bin)
 	if err != nil {
-		return err
+		return fmt.Errorf("run: %v", err)
 	}
 
-	return run(path, args, streams)
+	err = run(path, args, streams)
+	if err != nil {
+		return fmt.Errorf("run: %w", err)
+	}
+
+	return nil
 }

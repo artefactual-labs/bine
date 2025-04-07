@@ -3,6 +3,8 @@ package bine
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/fs"
@@ -46,13 +48,20 @@ func cached(binPath, versionMarker string) bool {
 	return true
 }
 
-func ensureInstalled(client *http.Client, b *bin, cacheDir string) (string, error) {
+func ensureInstalled(client *http.Client, b *bin, cacheDir string) (ret string, err error) {
 	ctx := context.Background()
-
 	binDir := filepath.Join(cacheDir, "bin")
 	versionsDir := filepath.Join(cacheDir, "versions", b.Name)
 	binPath := filepath.Join(binDir, b.Name)
 	versionMarker := filepath.Join(versionsDir, b.Version)
+
+	defer func() {
+		if err == nil {
+			if verifyErr := verify(b, binPath); verifyErr != nil {
+				err = fmt.Errorf("checksum verification failed: %v", verifyErr)
+			}
+		}
+	}()
 
 	// If version marker exists, assume binary is already installed.
 	if cached(binPath, versionMarker) {
@@ -75,41 +84,10 @@ func ensureInstalled(client *http.Client, b *bin, cacheDir string) (string, erro
 			return "", err
 		}
 		return binPath, nil
-	}
-
-	downloadURL, err := b.downloadURL()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate download URL: %v", err)
-	}
-
-	// Download the asset.
-	resp, err := client.Get(downloadURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to download asset from %q: %v", downloadURL, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download failed: status %s", resp.Status)
-	}
-	f, err := os.CreateTemp("", "downloaded-*-"+filepath.Base(downloadURL))
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = os.Remove(f.Name()) }()
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		_ = f.Close()
-		return "", fmt.Errorf("failed to write to temporary file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	// Reset file pointer to the beginning.
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		_ = f.Close()
-		return "", fmt.Errorf("failed to reset file pointer: %v", err)
-	}
-
-	if err := extract(ctx, f, binPath); err != nil {
-		return "", fmt.Errorf("download failed: %v", err)
+	} else {
+		if err := binInstall(ctx, client, b, binPath); err != nil {
+			return "", fmt.Errorf("failed to install binary: %v", err)
+		}
 	}
 
 	if err := markVersion(versionMarker); err != nil {
@@ -168,6 +146,45 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 	return nil
 }
 
+func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string) error {
+	downloadURL, err := b.downloadURL()
+	if err != nil {
+		return fmt.Errorf("failed to generate download URL: %v", err)
+	}
+
+	// Download the asset.
+	resp, err := client.Get(downloadURL)
+	if err != nil {
+		return fmt.Errorf("failed to download asset from %q: %v", downloadURL, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed: status %s", resp.Status)
+	}
+	f, err := os.CreateTemp("", "downloaded-*-"+filepath.Base(downloadURL))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(f.Name()) }()
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	// Reset file pointer to the beginning so we can extract.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("failed to reset file pointer: %v", err)
+	}
+
+	if err := extract(ctx, f, binPath); err != nil {
+		return fmt.Errorf("download failed: %v", err)
+	}
+
+	return nil
+}
+
 func extract(ctx context.Context, osf *os.File, binPath string) error {
 	fsys, err := archives.FileSystem(ctx, osf.Name(), osf)
 	if err != nil {
@@ -219,4 +236,46 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 	}
 
 	return nil
+}
+
+func verify(b *bin, binPath string) error {
+	if b.Checksum == "" {
+		return nil
+	}
+
+	expected := b.Checksum
+
+	actual, err := checksum(binPath)
+	if err != nil {
+		return fmt.Errorf("verify: %v", err)
+	}
+
+	if !strings.EqualFold(expected, actual) {
+		return fmt.Errorf("verify: checksum mismatch for binary %q: expected %q but got %q", b.Name, expected, actual)
+	}
+
+	return nil
+}
+
+func checksum(filePath string) (string, error) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "nil", fmt.Errorf("checksum: file does not exist")
+	} else if err != nil {
+		return "nil", fmt.Errorf("checksum: failed to stat file: %v", err)
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "nil", fmt.Errorf("checksum: failed to open file %v", err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "nil", fmt.Errorf("checksum: failed to hash file content %v", err)
+	}
+
+	hash := h.Sum(nil)
+
+	return hex.EncodeToString(hash), nil
 }
