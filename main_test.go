@@ -69,6 +69,20 @@ func TestRun(t *testing.T) {
 	assert.Assert(t, errors.As(err, new(*osexec.ExitError)))
 }
 
+func TestSync(t *testing.T) {
+	var (
+		ctx    = context.Background()
+		stdin  = strings.NewReader("")
+		stdout = &bytes.Buffer{}
+		stderr = &bytes.Buffer{}
+	)
+
+	err := exec(ctx, []string{"sync"}, stdin, stdout, stderr)
+	assert.NilError(t, err)
+	assert.Equal(t, stdout.String(), "")
+	assert.Equal(t, stderr.String(), "")
+}
+
 func TestVersion(t *testing.T) {
 	var (
 		ctx    = context.Background()

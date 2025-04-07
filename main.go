@@ -15,6 +15,7 @@ import (
 	"github.com/artefactual-labs/bine/cmd/pathcmd"
 	"github.com/artefactual-labs/bine/cmd/rootcmd"
 	"github.com/artefactual-labs/bine/cmd/runcmd"
+	"github.com/artefactual-labs/bine/cmd/synccmd"
 	"github.com/artefactual-labs/bine/cmd/versioncmd"
 )
 
@@ -48,6 +49,7 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		_    = getcmd.New(root)
 		_    = pathcmd.New(root)
 		_    = runcmd.New(root)
+		_    = synccmd.New(root)
 		_    = versioncmd.New(root)
 	)
 

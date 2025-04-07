@@ -96,3 +96,19 @@ func (b *Bine) Run(name string, args []string, streams IOStreams) error {
 
 	return nil
 }
+
+func (b *Bine) Sync() error {
+	for _, item := range b.config.Bins {
+		bin, err := b.load(item.Name)
+		if err != nil {
+			return fmt.Errorf("sync: %v", err)
+		}
+
+		_, err = b.install(bin)
+		if err != nil {
+			return fmt.Errorf("sync: %v", err)
+		}
+	}
+
+	return nil
+}
