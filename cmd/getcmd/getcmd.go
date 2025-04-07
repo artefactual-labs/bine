@@ -46,7 +46,7 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
-	path, err := bn.Get(name)
+	path, err := bn.Get(ctx, name)
 	if err != nil {
 		return err
 	}

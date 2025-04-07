@@ -1,6 +1,7 @@
 package bine
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
@@ -91,8 +92,8 @@ func (b *Bine) load(name string) (*bin, error) {
 }
 
 // install a binary given its config.
-func (b *Bine) install(bin *bin) (string, error) {
-	path, err := ensureInstalled(b.client.StandardClient(), bin, b.CacheDir)
+func (b *Bine) install(ctx context.Context, bin *bin) (string, error) {
+	path, err := ensureInstalled(ctx, b.client.StandardClient(), bin, b.CacheDir)
 	if err != nil {
 		return "", fmt.Errorf("install: %v", err)
 	}
@@ -101,13 +102,13 @@ func (b *Bine) install(bin *bin) (string, error) {
 }
 
 // Get retrieves the path to a binary given its name.
-func (b *Bine) Get(name string) (string, error) {
+func (b *Bine) Get(ctx context.Context, name string) (string, error) {
 	bin, err := b.load(name)
 	if err != nil {
 		return "", fmt.Errorf("get: %v", err)
 	}
 
-	path, err := b.install(bin)
+	path, err := b.install(ctx, bin)
 	if err != nil {
 		return "", fmt.Errorf("get: %v", err)
 	}
@@ -116,18 +117,18 @@ func (b *Bine) Get(name string) (string, error) {
 }
 
 // Run runs a binary given its name and arguments.
-func (b *Bine) Run(name string, args []string, streams IOStreams) error {
+func (b *Bine) Run(ctx context.Context, name string, args []string, streams IOStreams) error {
 	bin, err := b.load(name)
 	if err != nil {
 		return fmt.Errorf("run: %v", err)
 	}
 
-	path, err := b.install(bin)
+	path, err := b.install(ctx, bin)
 	if err != nil {
 		return fmt.Errorf("run: %v", err)
 	}
 
-	err = run(path, args, streams)
+	err = run(ctx, path, args, streams)
 	if err != nil {
 		return fmt.Errorf("run: %w", err)
 	}
@@ -136,14 +137,14 @@ func (b *Bine) Run(name string, args []string, streams IOStreams) error {
 }
 
 // Sync installs all binaries defined in the configuration.
-func (b *Bine) Sync() error {
+func (b *Bine) Sync(ctx context.Context) error {
 	for _, item := range b.config.Bins {
 		bin, err := b.load(item.Name)
 		if err != nil {
 			return fmt.Errorf("sync: %v", err)
 		}
 
-		_, err = b.install(bin)
+		_, err = b.install(ctx, bin)
 		if err != nil {
 			return fmt.Errorf("sync: %v", err)
 		}

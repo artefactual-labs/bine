@@ -51,5 +51,5 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 		Stderr: cfg.Stderr,
 	}
 
-	return bn.Run(name, args[1:], streams)
+	return bn.Run(ctx, name, args[1:], streams)
 }

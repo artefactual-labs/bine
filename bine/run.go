@@ -1,6 +1,7 @@
 package bine
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -13,8 +14,8 @@ type IOStreams struct {
 	Stderr io.Writer
 }
 
-func run(path string, args []string, streams IOStreams) error {
-	cmd := exec.Command(path, args...)
+func run(ctx context.Context, path string, args []string, streams IOStreams) error {
+	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Stdin = streams.Stdin
 	cmd.Stdout = streams.Stdout
 	cmd.Stderr = streams.Stderr

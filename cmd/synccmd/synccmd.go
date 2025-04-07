@@ -38,7 +38,7 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
-	err = bn.Sync()
+	err = bn.Sync(ctx)
 	if err != nil {
 		return err
 	}

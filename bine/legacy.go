@@ -52,8 +52,7 @@ func cached(binPath, versionMarker string) bool {
 	return true
 }
 
-func ensureInstalled(client *http.Client, b *bin, cacheDir string) (ret string, err error) {
-	ctx := context.Background()
+func ensureInstalled(ctx context.Context, client *http.Client, b *bin, cacheDir string) (ret string, err error) {
 	binDir := filepath.Join(cacheDir, "bin")
 	versionsDir := filepath.Join(cacheDir, "versions", b.Name)
 	binPath := filepath.Join(binDir, b.Name)
@@ -156,8 +155,13 @@ func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string
 		return fmt.Errorf("failed to generate download URL: %v", err)
 	}
 
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
 	// Download the asset.
-	resp, err := client.Get(downloadURL)
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download asset from %q: %v", downloadURL, err)
 	}
