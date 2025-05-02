@@ -86,7 +86,7 @@ func checkGoOutdated(ctx context.Context, httpClient *http.Client, bin *bin) (st
 	// Extract version from HTML using regex to find the first js-versionLink.
 	re := regexp.MustCompile(`<a class="js-versionLink"[^>]*>([^<]+)</a>`)
 	matches := re.FindSubmatch(body)
-	if matches == nil || len(matches) < 2 {
+	if len(matches) < 2 {
 		return "", fmt.Errorf("extract version: no match found in HTML")
 	}
 
