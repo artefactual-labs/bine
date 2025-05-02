@@ -40,8 +40,8 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, _ []string) error {
-	chacheDir := bine.WithCacheDir(cfg.CacheDir)
-	bn, err := bine.NewWithOptions(chacheDir)
+	cacheDir := bine.WithCacheDir(cfg.CacheDir)
+	bn, err := bine.NewWithOptions(cacheDir)
 	if err != nil {
 		return err
 	}
@@ -60,12 +60,24 @@ func (cfg *Config) Exec(ctx context.Context, _ []string) error {
 		}
 	}
 
+	// First, print items without errors.
 	for _, item := range items {
-		line := fmt.Sprintf("%s v%s", item.Name, item.Version)
-		if item.Latest != "" {
-			line += fmt.Sprintf(" » v%s", item.Latest)
+		if item.OutdatedCheckError == "" {
+			line := fmt.Sprintf("%s v%s", item.Name, item.Version)
+			if item.Latest != "" {
+				line += fmt.Sprintf(" » v%s", item.Latest)
+			}
+			fmt.Fprintln(cfg.Stdout, line)
 		}
-		fmt.Fprintln(cfg.Stdout, line)
+	}
+
+	// Then, print items with errors.
+	for _, item := range items {
+		if item.OutdatedCheckError != "" {
+			line := fmt.Sprintf("%s v%s", item.Name, item.Version)
+			line += fmt.Sprintf(" (%s)", item.OutdatedCheckError)
+			fmt.Fprintln(cfg.Stdout, line)
+		}
 	}
 
 	return nil

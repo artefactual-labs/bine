@@ -166,9 +166,10 @@ func (b *Bine) Sync(ctx context.Context) error {
 }
 
 type ListItem struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	Latest  string `json:"latest,omitempty"`
+	Name               string `json:"name"`
+	Version            string `json:"version"`
+	Latest             string `json:"latest,omitempty"`
+	OutdatedCheckError string `json:"outdated_check_error,omitempty"`
 }
 
 func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*ListItem, error) {
@@ -185,22 +186,23 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 		}
 
 		var latestVersion string
+		var outdatedCheckError string
 		if outdatedOnly {
 			var outdated bool
 			var err error
 			outdated, latestVersion, err = checkOutdated(ctx, bin, b.client.StandardClient())
 			if err != nil {
-				return nil, fmt.Errorf("list: %v", err)
-			}
-			if !outdated {
+				outdatedCheckError = err.Error()
+			} else if !outdated {
 				continue
 			}
 		}
 
 		items = append(items, &ListItem{
-			Name:    bin.Name,
-			Version: bin.Version,
-			Latest:  latestVersion,
+			Name:               bin.Name,
+			Version:            bin.Version,
+			Latest:             latestVersion,
+			OutdatedCheckError: outdatedCheckError,
 		})
 	}
 
