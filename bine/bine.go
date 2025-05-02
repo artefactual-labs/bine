@@ -101,6 +101,18 @@ func (b *Bine) install(ctx context.Context, bin *bin) (string, error) {
 	return path, nil
 }
 
+// installed checks if a binary is already installed.
+func (b *Bine) installed(name string) (bool, error) {
+	bin, err := b.load(name)
+	if err != nil {
+		return false, fmt.Errorf("installed: %v", err)
+	}
+
+	ok := installed(bin, b.CacheDir)
+
+	return ok, nil
+}
+
 // Get retrieves the path to a binary given its name.
 func (b *Bine) Get(ctx context.Context, name string) (string, error) {
 	bin, err := b.load(name)
@@ -151,4 +163,46 @@ func (b *Bine) Sync(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type ListItem struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Latest  string `json:"latest,omitempty"`
+}
+
+func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*ListItem, error) {
+	var items []*ListItem
+
+	for _, bin := range b.config.Bins {
+		if installedOnly {
+			ok, err := b.installed(bin.Name)
+			if err != nil {
+				return nil, fmt.Errorf("list: %v", err)
+			} else if !ok {
+				continue
+			}
+		}
+
+		var latestVersion string
+		if outdatedOnly {
+			var outdated bool
+			var err error
+			outdated, latestVersion, err = checkOutdated(ctx, bin, b.client.StandardClient())
+			if err != nil {
+				return nil, fmt.Errorf("list: %v", err)
+			}
+			if !outdated {
+				continue
+			}
+		}
+
+		items = append(items, &ListItem{
+			Name:    bin.Name,
+			Version: bin.Version,
+			Latest:  latestVersion,
+		})
+	}
+
+	return items, nil
 }

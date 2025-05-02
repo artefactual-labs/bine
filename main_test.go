@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 )
 
@@ -42,6 +44,31 @@ func TestGet(t *testing.T) {
 	cacheDir, err := runExec(t, []string{"get", "tparse"}, stdin, stdout, stderr)
 	assert.NilError(t, err)
 	assert.Equal(t, trimmed(t, stdout), binPath(t, cacheDir, "tparse"))
+}
+
+func TestList(t *testing.T) {
+	var (
+		stdin  = strings.NewReader("")
+		stdout = &bytes.Buffer{}
+		stderr = &bytes.Buffer{}
+	)
+
+	_, err := runExec(t, []string{"list", "--json"}, stdin, stdout, stderr)
+	assert.NilError(t, err)
+
+	type item struct {
+		Name    string
+		Version string
+	}
+	results := []item{}
+	err = json.Unmarshal(stdout.Bytes(), &results)
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, results, []item{
+		{Name: "golangci-lint"},
+		{Name: "go-mod-outdated"},
+		{Name: "tparse"},
+	}, cmpopts.IgnoreFields(item{}, "Version"))
 }
 
 func TestRun(t *testing.T) {

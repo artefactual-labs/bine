@@ -12,6 +12,7 @@ import (
 	"github.com/peterbourgon/ff/v4/ffhelp"
 
 	"github.com/artefactual-labs/bine/cmd/getcmd"
+	"github.com/artefactual-labs/bine/cmd/listcmd"
 	"github.com/artefactual-labs/bine/cmd/pathcmd"
 	"github.com/artefactual-labs/bine/cmd/rootcmd"
 	"github.com/artefactual-labs/bine/cmd/runcmd"
@@ -47,6 +48,7 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	var (
 		root = rootcmd.New(stdin, stdout, stderr)
 		_    = getcmd.New(root)
+		_    = listcmd.New(root)
 		_    = pathcmd.New(root)
 		_    = runcmd.New(root)
 		_    = synccmd.New(root)

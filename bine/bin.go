@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"golang.org/x/mod/semver"
 )
 
 type bin struct {
@@ -42,4 +44,8 @@ func (b bin) downloadURL() (string, error) {
 	}
 
 	return downloadURL, nil
+}
+
+func (b bin) canonicalVersion() string {
+	return semver.Canonical("v" + strings.TrimPrefix(b.Version, "v"))
 }

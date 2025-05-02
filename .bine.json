@@ -18,11 +18,11 @@
             "checksum": "ac5c60ef7350f34d49ebfb6e8e8d907c4c70b73e2141b21a5df7fc733e0fcbf4",
         },
         {
-          "name": "tparse",
-          "url": "https://github.com/mfridman/tparse",
-          "version": "0.13.1",
-          "asset_pattern": "{name}_{goos}_{arch}",
-          "checksum": "0ac8e57405de2cc26bd16113be4e55d4135d416353c35d5e6ca6d1f661544dae",
+            "name": "tparse",
+            "url": "https://github.com/mfridman/tparse",
+            "version": "0.13.1",
+            "asset_pattern": "{name}_{goos}_{arch}",
+            "checksum": "0ac8e57405de2cc26bd16113be4e55d4135d416353c35d5e6ca6d1f661544dae",
         },
     ]
 }

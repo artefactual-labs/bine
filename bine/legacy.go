@@ -52,6 +52,15 @@ func cached(binPath, versionMarker string) bool {
 	return true
 }
 
+func installed(b *bin, cacheDir string) bool {
+	binDir := filepath.Join(cacheDir, "bin")
+	versionsDir := filepath.Join(cacheDir, "versions", b.Name)
+	binPath := filepath.Join(binDir, b.Name)
+	versionMarker := filepath.Join(versionsDir, b.Version)
+
+	return cached(binPath, versionMarker)
+}
+
 func ensureInstalled(ctx context.Context, client *http.Client, b *bin, cacheDir string) (ret string, err error) {
 	binDir := filepath.Join(cacheDir, "bin")
 	versionsDir := filepath.Join(cacheDir, "versions", b.Name)
