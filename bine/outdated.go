@@ -20,7 +20,7 @@ const userAgent = "bine"
 // the latest version available.
 //
 // TODO: manage checks using providers, e.g. GitHub, Go modules, etc.
-func checkOutdated(ctx context.Context, bin *bin, httpClient *http.Client) (bool, string, error) {
+func checkOutdated(ctx context.Context, bin *bin, httpClient *http.Client, ghAPIToken string) (bool, string, error) {
 	if bin.Version == "" {
 		return false, "", fmt.Errorf("binary %q has no version specified", bin.Name)
 	}
@@ -30,9 +30,13 @@ func checkOutdated(ctx context.Context, bin *bin, httpClient *http.Client) (bool
 	if bin.goPkg() {
 		latestVersion, err = checkGoOutdated(ctx, httpClient, bin)
 	} else if strings.Contains(bin.URL, "github.com") {
-		latestVersion, err = checkGitHubOutdated(ctx, httpClient, bin)
+		latestVersion, err = checkGitHubOutdated(ctx, httpClient, bin, ghAPIToken)
 	} else {
-		return false, "", fmt.Errorf("check failed for binary %q: unsupported binary provider", bin.Name)
+		var provider string
+		if binURL, err := url.Parse(bin.URL); err == nil {
+			provider = binURL.Hostname()
+		}
+		return false, "", fmt.Errorf("check failed for binary %q: unsupported binary provider %q", bin.Name, provider)
 	}
 	if err != nil {
 		return false, "", fmt.Errorf("check failed for binary %q: %v", bin.Name, err)
@@ -101,7 +105,7 @@ type githubRelease struct {
 }
 
 // checkGitHubOutdated retrieves the latest semver version from GitHub releases.
-func checkGitHubOutdated(ctx context.Context, client *http.Client, bin *bin) (string, error) {
+func checkGitHubOutdated(ctx context.Context, client *http.Client, bin *bin, ghAPIToken string) (string, error) {
 	u, err := url.Parse(bin.URL)
 	if err != nil {
 		return "", fmt.Errorf("parse URL: %v", err)
@@ -122,6 +126,9 @@ func checkGitHubOutdated(ctx context.Context, client *http.Client, bin *bin) (st
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/vnd.github+json")
+	if ghAPIToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer: %s", ghAPIToken))
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

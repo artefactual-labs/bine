@@ -64,7 +64,10 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		}
 	}()
 
-	if err := root.Command.Parse(args); err != nil {
+	opts := []ff.Option{
+		ff.WithEnvVarPrefix("BINE"),
+	}
+	if err := root.Command.Parse(args, opts...); err != nil {
 		return fmt.Errorf("parse: %w", err)
 	}
 

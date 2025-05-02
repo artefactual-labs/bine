@@ -40,8 +40,10 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, _ []string) error {
-	cacheDir := bine.WithCacheDir(cfg.CacheDir)
-	bn, err := bine.NewWithOptions(cacheDir)
+	bn, err := bine.NewWithOptions(
+		bine.WithCacheDir(cfg.CacheDir),
+		bine.WithGitHubAPIToken(cfg.GitHubAPIToken),
+	)
 	if err != nil {
 		return err
 	}

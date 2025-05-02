@@ -8,13 +8,14 @@ import (
 )
 
 type RootConfig struct {
-	Stdin    io.Reader
-	Stdout   io.Writer
-	Stderr   io.Writer
-	Verbose  bool
-	CacheDir string
-	Flags    *ff.FlagSet
-	Command  *ff.Command
+	Stdin          io.Reader
+	Stdout         io.Writer
+	Stderr         io.Writer
+	Verbose        bool
+	CacheDir       string
+	GitHubAPIToken string
+	Flags          *ff.FlagSet
+	Command        *ff.Command
 }
 
 func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
@@ -23,7 +24,6 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 	cfg.Stdout = stdout
 	cfg.Stderr = stderr
 	cfg.Flags = ff.NewFlagSet("bine")
-	cfg.Flags.StringVar(&cfg.CacheDir, 0, "cache-dir", "", "Path to the cache directory.")
 	cfg.Flags.AddFlag(ff.FlagConfig{
 		ShortName: 'v',
 		LongName:  "verbose",
@@ -31,6 +31,8 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 		Usage:     "log verbose output",
 		NoDefault: true,
 	})
+	cfg.Flags.StringVar(&cfg.CacheDir, 0, "cache-dir", "", "Path to the cache directory.")
+	cfg.Flags.StringVar(&cfg.GitHubAPIToken, 0, "github-api-token", "", "GitHub API token for authentication.")
 	cfg.Command = &ff.Command{
 		Name:      "bine",
 		ShortHelp: "Simple binary manager for developers.",

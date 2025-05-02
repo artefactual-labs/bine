@@ -87,6 +87,22 @@ The following variables are supported:
 * `{arch}`: The machine hardware name as reported by `uname -m` (e.g., `x86_64`,
   `arm64`).
 
+## Authenticating to the GitHub Rest API
+
+If you downloading binaries from GitHub, you may need to authenticate to the
+GitHub Rest API to avoid rate limiting. This is especially important if you
+are using `bine list --outdated` to check for outdated binaries.
+
+There are two ways to pass the token to bine:
+
+```
+# Using an environment variable:
+BINE_GITHUB_API_TOKEN=token bine list --outdated
+
+# Using a command-line flag:
+bine list --outdated --github-api-token=token
+```
+
 [releases page]: https://github.com/artefactual-labs/bine/releases
 [`examples`]: ./examples
 [`make`]: ./examples/make

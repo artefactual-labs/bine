@@ -12,8 +12,9 @@ type Bine struct {
 	CacheDir string // e.g. ~/.cache/bine/project/linux/amd64/
 	BinDir   string // e.g. ~/.cache/bine/project/linux/amd64/bin/
 
-	client *retryablehttp.Client
-	config *config
+	client     *retryablehttp.Client
+	config     *config
+	ghAPIToken string
 }
 
 // New creates a new Bine instance with default options.
@@ -38,12 +39,21 @@ type Option func(*options) error
 
 type options struct {
 	cacheDirBase string
+	ghAPIToken   string
 }
 
 // WithCacheDir specifies a custom base directory for the bine cache.
 func WithCacheDir(path string) Option {
 	return func(o *options) error {
 		o.cacheDirBase = path
+		return nil
+	}
+}
+
+// WithGitHubAPIToken specifies a GitHub API token for authentication.
+func WithGitHubAPIToken(token string) Option {
+	return func(o *options) error {
+		o.ghAPIToken = token
 		return nil
 	}
 }
@@ -68,10 +78,11 @@ func newBine(optsConfig *options) (*Bine, error) {
 	}
 
 	return &Bine{
-		CacheDir: cache,
-		BinDir:   filepath.Join(cache, "bin"),
-		client:   client,
-		config:   config,
+		CacheDir:   cache,
+		BinDir:     filepath.Join(cache, "bin"),
+		client:     client,
+		config:     config,
+		ghAPIToken: optsConfig.ghAPIToken,
 	}, nil
 }
 
@@ -190,7 +201,7 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 		if outdatedOnly {
 			var outdated bool
 			var err error
-			outdated, latestVersion, err = checkOutdated(ctx, bin, b.client.StandardClient())
+			outdated, latestVersion, err = checkOutdated(ctx, bin, b.client.StandardClient(), b.ghAPIToken)
 			if err != nil {
 				outdatedCheckError = err.Error()
 			} else if !outdated {
