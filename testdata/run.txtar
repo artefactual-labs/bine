@@ -1,0 +1,22 @@
+cp .bine.json $WORK/.bine.json
+env HOME=$TMPDIR/homedir
+
+! exec bine run
+! stdout .
+stderr 'run requires one argument'
+
+exec bine run perpignan
+stderr 'hello world\!'
+
+-- .bine.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}

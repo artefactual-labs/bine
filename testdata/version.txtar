@@ -1,0 +1,6 @@
+exec bine version
+cmpenv stdout output.txt
+! stderr .
+
+-- output.txt --
+bine (devel) (built with $GOVERSION)

@@ -1,0 +1,31 @@
+cp .bine.json $WORK/.bine.json
+env HOME=$TMPDIR/homedir
+
+! exec bine get
+! stdout .
+stderr 'get requires one argument'
+
+exec bine get perpignan
+cmpenv stdout get1
+! stderr .
+
+exec ls $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
+stdout 'perpignan\n'
+
+exec $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stderr 'hello world\!'
+
+-- .bine.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}
+-- get1 --
+$WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan

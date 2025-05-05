@@ -1,0 +1,50 @@
+cp .bine.json $WORK/.bine.json
+mkdir $WORK/home
+env HOME=$WORK/home
+
+exec bine list
+cmp stdout list
+! stderr .
+
+exec bine list --installed
+! stdout .
+! stderr .
+
+exec bine sync
+exec bine list --installed
+cmp stdout list-installed
+! stderr .
+
+exec bine list --installed --json
+cmp stdout list-installed-json
+! stderr .
+
+exec bine list --outdated
+cmp stdout list-outdated
+! stderr .
+
+-- .bine.json --
+{
+	"project": "test",
+	"bins": [
+		{
+			"name": "perpignan",
+			"url": "https://github.com/sevein/perpignan",
+			"version": "1.0.0",
+			"asset_pattern": "{name}_{version}_{goos}_{goarch}"
+		},
+	]
+}
+-- list --
+perpignan v1.0.0
+-- list-installed --
+perpignan v1.0.0
+-- list-installed-json --
+[
+	{
+		"name": "perpignan",
+		"version": "1.0.0"
+	}
+]
+-- list-outdated --
+perpignan v1.0.0 » v1.0.2
