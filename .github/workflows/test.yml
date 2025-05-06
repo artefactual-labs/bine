@@ -1,0 +1,35 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+      - name: Check mod tidy
+        run: go mod tidy -diff
+      - name: Install Just
+        uses: extractions/setup-just@v2
+      - name: Sync bine
+        run: go tool bine sync
+      - name: Check formatters
+        run: just fmt
+      - name: Check linters
+        run: just lint
+      - name: Run tests
+        run: just cov coverage.txt
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: artefactual-labs/bine

@@ -10,7 +10,6 @@ require (
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
-	gotest.tools/v3 v3.5.2
 )
 
 require golang.org/x/tools v0.26.0 // indirect
