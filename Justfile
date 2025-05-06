@@ -22,10 +22,14 @@ deps:
   @go list -u -m -json all | {{GO_MOD_OUTDATED}} -direct -update
 
 # Print a coverage report.
-cov:
+cov file="":
   #!/usr/bin/env bash
   set -euo pipefail
-  tmpfile=$(mktemp)
-  go test -cover -coverpkg=./... -coverprofile=$tmpfile ./... 1>/dev/null
-  go tool cover -func=$tmpfile
+  if [ -n "{{file}}" ]; then
+    tmpfile="{{file}}"
+  else
+    tmpfile=$(mktemp)
+  fi
+  go test -cover -coverpkg=./... -coverprofile="$tmpfile" ./... 1>/dev/null
+  go tool cover -func="$tmpfile"
   echo "coverprofile: $tmpfile (go tool cover -html=$tmpfile)"
