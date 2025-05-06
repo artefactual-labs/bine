@@ -1,3 +1,9 @@
+<p align="left">
+  <a href="https://github.com/artefactual-labs/bine/releases/latest"><img src="https://img.shields.io/github/v/release/artefactual-labs/bine.svg?color=orange"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"/></a>
+  <a href="https://codecov.io/gh/artefactual-labs/bine"><img src="https://img.shields.io/codecov/c/github/artefactual-labs/bine"/></a>
+</p>
+
 # bine
 
 **bine** is a simple binary downloader for development environments.
