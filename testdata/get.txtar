@@ -1,9 +1,12 @@
-cp .bine.json $WORK/.bine.json
-env HOME=$TMPDIR/homedir
+setup .bine.json
 
 ! exec bine get
 ! stdout .
 stderr 'get requires one argument'
+
+#
+# Downloads binary.
+#
 
 exec bine get perpignan
 cmpenv stdout get1
@@ -15,6 +18,35 @@ stdout 'perpignan\n'
 exec $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
 stderr 'hello world\!'
 
+#
+# Verifies checksum during download of binary.
+#
+
+setup .bine-with-checksum.json
+! exec bine get perpignan
+! stdout .
+stderr 'checksum verification failed'
+
+#
+# Builds Go binary.
+#
+
+setup .bine-with-go-package.json
+exec bine get perpignan
+cmpenv stdout get1
+! stderr .
+
+exec ls $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
+stdout 'perpignan\n'
+
+exec $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'Hello world\!\n'
+
+setup .bine-with-unbuildable-go-package.json
+! exec bine get perpignan
+! stdout .
+stderr 'failed to install Go tool'
+
 -- .bine.json --
 {
     "project": "test",
@@ -24,6 +56,45 @@ stderr 'hello world\!'
             "url": "https://github.com/sevein/perpignan",
             "version": "1.0.0",
             "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}
+-- .bine-with-checksum.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}",
+            // Actual checksum: "3a8e77e776d4732d556dce8fbfebd58b043c750bebfed576d3b0ad321bb5d1c6".
+            "checksum": "0000000076d4732d556dce8fbfebd58b043c750bebfed576d3b0ad321bb5d1c6"
+        }
+    ]
+}
+-- .bine-with-go-package.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "1.0.2"
+        }
+    ]
+}
+-- .bine-with-unbuildable-go-package.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            // This version won't build as a Go package because the module
+            // directive wasn't properly named. It can be used to test
+            // error handling during the build.
+            "version": "1.0.1"
         }
     ]
 }

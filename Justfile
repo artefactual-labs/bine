@@ -28,3 +28,4 @@ cov:
   tmpfile=$(mktemp)
   go test -cover -coverpkg=./... -coverprofile=$tmpfile ./... 1>/dev/null
   go tool cover -func=$tmpfile
+  echo "coverprofile: $tmpfile (go tool cover -html=$tmpfile)"

@@ -1,6 +1,4 @@
-cp .bine.json $WORK/.bine.json
-mkdir $WORK/home
-env HOME=$WORK/home
+setup .bine1.json
 
 exec bine list
 cmp stdout list
@@ -19,11 +17,18 @@ exec bine list --installed --json
 cmp stdout list-installed-json
 ! stderr .
 
+# Discovers outdated binaries.
 exec bine list --outdated
 cmp stdout list-outdated
 ! stderr .
 
--- .bine.json --
+# Discovers outdated Go binaries.
+setup .bine2.json
+exec bine list --outdated
+cmp stdout list-outdated
+! stderr .
+
+-- .bine1.json --
 {
 	"project": "test",
 	"bins": [
@@ -34,6 +39,17 @@ cmp stdout list-outdated
 			"asset_pattern": "{name}_{version}_{goos}_{goarch}"
 		},
 	]
+}
+-- .bine2.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "1.0.0"
+        }
+    ]
 }
 -- list --
 perpignan v1.0.0

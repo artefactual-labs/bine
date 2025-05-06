@@ -1,5 +1,4 @@
-cp .bine.json $WORK/.bine.json
-env HOME=$TMPDIR/homedir
+setup .bine.json
 
 exec bine sync
 ! stdout .
