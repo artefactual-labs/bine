@@ -4,6 +4,14 @@ bine list
 cmp stdout list
 ! stderr .
 
+# Walks parents to find config file.
+mkdir foobar
+cd foobar
+bine list
+cmp stdout ../list
+! stderr .
+cd ..
+
 bine list --installed
 ! stdout .
 ! stderr .
