@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +19,7 @@ type config struct {
 	Bins    []*bin `json:"bins"`
 }
 
-func loadConfig() (*config, error) {
+func loadConfig(client *http.Client, ghAPIToken string) (*config, error) {
 	curDir, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -41,6 +42,11 @@ func loadConfig() (*config, error) {
 				return nil, err
 			}
 			namer.run(cfg)
+			for _, b := range cfg.Bins {
+				if err := b.loadProvider(client, ghAPIToken); err != nil {
+					return nil, err
+				}
+			}
 			return cfg, nil
 		}
 

@@ -159,7 +159,7 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 }
 
 func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string) error {
-	downloadURL, err := b.downloadURL()
+	downloadURL, err := b.provider.downloadURL(b)
 	if err != nil {
 		return fmt.Errorf("failed to generate download URL: %v", err)
 	}

@@ -3,18 +3,20 @@ package bine
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"path/filepath"
 
 	"github.com/hashicorp/go-retryablehttp"
 )
 
+const userAgent = "bine"
+
 type Bine struct {
 	CacheDir string // e.g. ~/.cache/bine/project/linux/amd64/
 	BinDir   string // e.g. ~/.cache/bine/project/linux/amd64/bin/
 
-	client     *retryablehttp.Client
-	config     *config
-	ghAPIToken string
+	client *http.Client
+	config *config
 }
 
 // New creates a new Bine instance with default options.
@@ -62,8 +64,9 @@ func newBine(optsConfig *options) (*Bine, error) {
 	client := retryablehttp.NewClient()
 	client.Logger = nil
 	client.RetryMax = 3
+	stdClient := client.StandardClient()
 
-	config, err := loadConfig()
+	config, err := loadConfig(stdClient, optsConfig.ghAPIToken)
 	if err != nil {
 		return nil, err
 	}
@@ -78,11 +81,10 @@ func newBine(optsConfig *options) (*Bine, error) {
 	}
 
 	return &Bine{
-		CacheDir:   cache,
-		BinDir:     filepath.Join(cache, "bin"),
-		client:     client,
-		config:     config,
-		ghAPIToken: optsConfig.ghAPIToken,
+		CacheDir: cache,
+		BinDir:   filepath.Join(cache, "bin"),
+		client:   stdClient,
+		config:   config,
 	}, nil
 }
 
@@ -104,7 +106,7 @@ func (b *Bine) load(name string) (*bin, error) {
 
 // install a binary given its config.
 func (b *Bine) install(ctx context.Context, bin *bin) (string, error) {
-	path, err := ensureInstalled(ctx, b.client.StandardClient(), bin, b.CacheDir)
+	path, err := ensureInstalled(ctx, b.client, bin, b.CacheDir)
 	if err != nil {
 		return "", fmt.Errorf("install: %v", err)
 	}
@@ -201,7 +203,7 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 		if outdatedOnly {
 			var outdated bool
 			var err error
-			outdated, latestVersion, err = checkOutdated(ctx, bin, b.client.StandardClient(), b.ghAPIToken)
+			outdated, latestVersion, err = bin.checkOutdated(ctx)
 			if err != nil {
 				outdatedCheckError = err.Error()
 			} else if !outdated {
