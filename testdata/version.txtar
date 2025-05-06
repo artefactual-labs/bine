@@ -1,4 +1,4 @@
-exec bine version
+bine version
 cmpenv stdout output.txt
 ! stderr .
 

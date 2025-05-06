@@ -1,10 +1,10 @@
 setup .bine.json
 
-! exec bine run
+! bine run
 ! stdout .
 stderr 'run requires one argument'
 
-exec bine run perpignan
+bine run perpignan
 stderr 'hello world\!'
 
 -- .bine.json --

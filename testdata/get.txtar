@@ -8,7 +8,7 @@ stderr 'get requires one argument'
 # Downloads binary.
 #
 
-exec bine get perpignan
+bine get perpignan
 cmpenv stdout get1
 ! stderr .
 
@@ -23,7 +23,7 @@ stderr 'hello world\!'
 #
 
 setup .bine-with-checksum.json
-! exec bine get perpignan
+! bine get perpignan
 ! stdout .
 stderr 'checksum verification failed'
 
@@ -32,7 +32,7 @@ stderr 'checksum verification failed'
 #
 
 setup .bine-with-go-package.json
-exec bine get perpignan
+bine get perpignan
 cmpenv stdout get1
 ! stderr .
 
@@ -43,7 +43,7 @@ exec $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
 stdout 'Hello world\!\n'
 
 setup .bine-with-unbuildable-go-package.json
-! exec bine get perpignan
+! bine get perpignan
 ! stdout .
 stderr 'failed to install Go tool'
 

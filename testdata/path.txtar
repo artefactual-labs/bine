@@ -1,9 +1,9 @@
 setup .bine.json
 
-exec bine path
+bine path
 cmpenv stdout path1
 
-exec bine path --cache-dir=/tmp/bine-cache-dir
+bine path --cache-dir=/tmp/bine-cache-dir
 cmp stdout path2
 
 -- .bine.json --

@@ -1,6 +1,6 @@
 setup .bine.json
 
-exec bine sync
+bine sync
 ! stdout .
 ! stderr .
 
