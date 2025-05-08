@@ -39,7 +39,7 @@ func main() {
 			os.Exit(exitErr.ExitCode())
 		}
 
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		fmt.Fprintf(stderr, "Command failed: %v.\n", err)
 		os.Exit(1)
 	}
 }
@@ -55,24 +55,16 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		_    = versioncmd.New(root)
 	)
 
-	defer func() {
-		if err != nil {
-			var exitErr *osexec.ExitError
-			if !errors.As(err, &exitErr) {
-				fmt.Fprintf(stderr, "\n%s\n", ffhelp.Command(root.Command))
-			}
-		}
-	}()
-
 	opts := []ff.Option{
 		ff.WithEnvVarPrefix("BINE"),
 	}
 	if err := root.Command.Parse(args, opts...); err != nil {
-		return fmt.Errorf("parse: %w", err)
+		fmt.Fprintf(stderr, "\n%s\n", ffhelp.Command(root.Command))
+		return err
 	}
 
 	if err := root.Command.Run(ctx); err != nil {
-		return fmt.Errorf("run: %w", err)
+		return err
 	}
 
 	return nil
