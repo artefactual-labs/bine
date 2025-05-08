@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 
 	"github.com/artefactual-labs/bine/bine"
@@ -39,8 +40,11 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 
 	name := args[0]
 
-	chacheDir := bine.WithCacheDir(cfg.CacheDir)
-	bn, err := bine.NewWithOptions(chacheDir)
+	logger, _ := logr.FromContext(ctx)
+	b, err := bine.NewWithOptions(
+		bine.WithCacheDir(cfg.CacheDir),
+		bine.WithLogger(logger),
+	)
 	if err != nil {
 		return err
 	}
@@ -51,5 +55,5 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 		Stderr: cfg.Stderr,
 	}
 
-	return bn.Run(ctx, name, args[1:], streams)
+	return b.Run(ctx, name, args[1:], streams)
 }

@@ -26,9 +26,9 @@ cmp stdout ../list-installed-json
 ! stderr .
 
 # Discovers outdated binaries.
-bine list --outdated
+bine list --outdated --verbosity=2
 cmp stdout ../list-outdated
-! stderr .
+stderr 'performing request'
 
 # Discovers outdated Go binaries.
 setup .bine2.json

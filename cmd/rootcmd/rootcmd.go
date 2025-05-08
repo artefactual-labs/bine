@@ -3,15 +3,16 @@ package rootcmd
 import (
 	"io"
 
+	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
-	"github.com/peterbourgon/ff/v4/ffval"
 )
 
 type RootConfig struct {
+	Logger         logr.Logger
 	Stdin          io.Reader
 	Stdout         io.Writer
 	Stderr         io.Writer
-	Verbose        bool
+	Verbosity      int
 	CacheDir       string
 	GitHubAPIToken string
 	Flags          *ff.FlagSet
@@ -24,13 +25,7 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 	cfg.Stdout = stdout
 	cfg.Stderr = stderr
 	cfg.Flags = ff.NewFlagSet("bine")
-	cfg.Flags.AddFlag(ff.FlagConfig{
-		ShortName: 'v',
-		LongName:  "verbose",
-		Value:     ffval.NewValue(&cfg.Verbose),
-		Usage:     "log verbose output",
-		NoDefault: true,
-	})
+	cfg.Flags.IntVar(&cfg.Verbosity, 'v', "verbosity", -1, "Log verbosity level. The higher the number, the more verbose the output.")
 	cfg.Flags.StringVar(&cfg.CacheDir, 0, "cache-dir", "", "Path to the cache directory.")
 	cfg.Flags.StringVar(&cfg.GitHubAPIToken, 0, "github-api-token", "", "GitHub API token for authentication.")
 	cfg.Command = &ff.Command{

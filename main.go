@@ -8,8 +8,10 @@ import (
 	"os"
 	osexec "os/exec"
 
+	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 	"github.com/peterbourgon/ff/v4/ffhelp"
+	"go.artefactual.dev/tools/log"
 
 	"github.com/artefactual-labs/bine/cmd/getcmd"
 	"github.com/artefactual-labs/bine/cmd/listcmd"
@@ -62,6 +64,18 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		fmt.Fprintf(stderr, "\n%s\n", ffhelp.Command(root.Command))
 		return err
 	}
+
+	var logger logr.Logger
+	if root.Verbosity > 0 {
+		logger = log.New(
+			os.Stderr,
+			log.WithName("bine"),
+			log.WithDebug(true),
+			log.WithLevel(root.Verbosity),
+		)
+	}
+	defer log.Sync(logger)
+	ctx = logr.NewContext(ctx, logger)
 
 	if err := root.Command.Run(ctx); err != nil {
 		return err

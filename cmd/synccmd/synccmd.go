@@ -3,6 +3,7 @@ package synccmd
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 
 	"github.com/artefactual-labs/bine/bine"
@@ -32,13 +33,16 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, args []string) error {
-	chacheDir := bine.WithCacheDir(cfg.CacheDir)
-	bn, err := bine.NewWithOptions(chacheDir)
+	logger, _ := logr.FromContext(ctx)
+	b, err := bine.NewWithOptions(
+		bine.WithCacheDir(cfg.CacheDir),
+		bine.WithLogger(logger),
+	)
 	if err != nil {
 		return err
 	}
 
-	err = bn.Sync(ctx)
+	err = b.Sync(ctx)
 	if err != nil {
 		return err
 	}
