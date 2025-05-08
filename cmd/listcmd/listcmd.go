@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 
 	"github.com/artefactual-labs/bine/bine"
@@ -40,15 +41,16 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, _ []string) error {
-	bn, err := bine.NewWithOptions(
+	logger, _ := logr.FromContext(ctx)
+	b, err := bine.NewWithOptions(
 		bine.WithCacheDir(cfg.CacheDir),
-		bine.WithGitHubAPIToken(cfg.GitHubAPIToken),
+		bine.WithLogger(logger),
 	)
 	if err != nil {
 		return err
 	}
 
-	items, err := bn.List(ctx, cfg.InstalledOnly, cfg.OutdatedOnly)
+	items, err := b.List(ctx, cfg.InstalledOnly, cfg.OutdatedOnly)
 	if err != nil {
 		return err
 	}

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-retryablehttp"
 )
 
@@ -17,11 +18,12 @@ const (
 )
 
 type Bine struct {
-	CacheDir string // e.g. ~/.cache/bine/project/linux/amd64/
-	BinDir   string // e.g. ~/.cache/bine/project/linux/amd64/bin/
-
+	logger logr.Logger
 	client *http.Client
 	config *config
+
+	CacheDir string // e.g. ~/.cache/bine/project/linux/amd64/
+	BinDir   string // e.g. ~/.cache/bine/project/linux/amd64/bin/
 }
 
 // New creates a new Bine instance with default options.
@@ -45,8 +47,17 @@ func NewWithOptions(opts ...Option) (*Bine, error) {
 type Option func(*options) error
 
 type options struct {
+	logger       *logr.Logger
 	cacheDirBase string
 	ghAPIToken   string
+}
+
+// WithLogger specifies a custom logger for the Bine instance.
+func WithLogger(logger logr.Logger) Option {
+	return func(o *options) error {
+		o.logger = &logger
+		return nil
+	}
 }
 
 // WithCacheDir specifies a custom base directory for the bine cache.
@@ -68,7 +79,6 @@ func WithGitHubAPIToken(token string) Option {
 // newBine creates a new Bine instance with the given options.
 func newBine(optsConfig *options) (*Bine, error) {
 	client := retryablehttp.NewClient()
-	client.Logger = nil
 	client.RetryMax = 3
 	stdClient := client.StandardClient()
 
@@ -84,6 +94,11 @@ func newBine(optsConfig *options) (*Bine, error) {
 	b := &Bine{
 		client: stdClient,
 		config: config,
+	}
+
+	if optsConfig.logger != nil {
+		b.logger = *optsConfig.logger
+		client.Logger = clientLogger{b.logger.WithName("client")}
 	}
 
 	if cacheDir, err := b.cacheDir(optsConfig.cacheDirBase); err != nil {
@@ -111,6 +126,8 @@ func (b *Bine) cacheDir(baseDir string) (string, error) {
 	}
 
 	cacheDir := filepath.Join(baseDir, project, runtime.GOOS, runtime.GOARCH)
+
+	b.logger.V(1).Info("Cache directory identified.", "path", cacheDir)
 
 	return cacheDir, nil
 }
@@ -247,4 +264,27 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 	}
 
 	return items, nil
+}
+
+// clientLogger is a custom logger for the retryablehttp client.
+type clientLogger struct {
+	logger logr.Logger
+}
+
+var _ retryablehttp.LeveledLogger = clientLogger{}
+
+func (l clientLogger) Error(msg string, keysAndValues ...any) {
+	l.logger.V(0).Info(msg, keysAndValues...)
+}
+
+func (l clientLogger) Warn(msg string, keysAndValues ...any) {
+	l.logger.V(0).Info(msg, keysAndValues...)
+}
+
+func (l clientLogger) Info(msg string, keysAndValues ...any) {
+	l.logger.V(1).Info(msg, keysAndValues...)
+}
+
+func (l clientLogger) Debug(msg string, keysAndValues ...any) {
+	l.logger.V(2).Info(msg, keysAndValues...)
 }
