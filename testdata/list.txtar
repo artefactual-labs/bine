@@ -1,14 +1,14 @@
 setup .bine1.json
 
 bine list
-cmp stdout list
+cmp stdout ../list
 ! stderr .
 
 # Walks parents to find config file.
 mkdir foobar
 cd foobar
 bine list
-cmp stdout ../list
+cmp stdout ../../list
 ! stderr .
 cd ..
 
@@ -18,22 +18,22 @@ bine list --installed
 
 bine sync
 bine list --installed
-cmp stdout list-installed
+cmp stdout ../list-installed
 ! stderr .
 
 bine list --installed --json
-cmp stdout list-installed-json
+cmp stdout ../list-installed-json
 ! stderr .
 
 # Discovers outdated binaries.
 bine list --outdated
-cmp stdout list-outdated
+cmp stdout ../list-outdated
 ! stderr .
 
 # Discovers outdated Go binaries.
 setup .bine2.json
 bine list --outdated
-cmp stdout list-outdated
+cmp stdout ../list-outdated
 ! stderr .
 
 -- .bine1.json --

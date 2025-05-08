@@ -4,12 +4,17 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/hashicorp/go-retryablehttp"
 )
 
-const userAgent = "bine"
+const (
+	cacheDirName = "bine"
+	userAgent    = "bine"
+)
 
 type Bine struct {
 	CacheDir string // e.g. ~/.cache/bine/project/linux/amd64/
@@ -60,6 +65,7 @@ func WithGitHubAPIToken(token string) Option {
 	}
 }
 
+// newBine creates a new Bine instance with the given options.
 func newBine(optsConfig *options) (*Bine, error) {
 	client := retryablehttp.NewClient()
 	client.Logger = nil
@@ -75,17 +81,38 @@ func newBine(optsConfig *options) (*Bine, error) {
 		optsConfig = &options{}
 	}
 
-	cache, err := cacheDir(optsConfig.cacheDirBase, config.Project)
-	if err != nil {
-		return nil, err
+	b := &Bine{
+		client: stdClient,
+		config: config,
 	}
 
-	return &Bine{
-		CacheDir: cache,
-		BinDir:   filepath.Join(cache, "bin"),
-		client:   stdClient,
-		config:   config,
-	}, nil
+	if cacheDir, err := b.cacheDir(optsConfig.cacheDirBase); err != nil {
+		return nil, err
+	} else {
+		b.CacheDir = cacheDir
+		b.BinDir = filepath.Join(cacheDir, "bin")
+	}
+
+	return b, nil
+}
+
+// cacheDir returns the cache directory for the given project. Only called once
+// at startup.
+func (b *Bine) cacheDir(baseDir string) (string, error) {
+	project := b.config.Project
+
+	var err error
+	if baseDir == "" {
+		baseDir, err = os.UserCacheDir()
+		if err != nil {
+			return "", err
+		}
+		baseDir = filepath.Join(baseDir, cacheDirName)
+	}
+
+	cacheDir := filepath.Join(baseDir, project, runtime.GOOS, runtime.GOARCH)
+
+	return cacheDir, nil
 }
 
 // load the config of a binary given its name.

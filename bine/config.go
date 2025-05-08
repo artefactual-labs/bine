@@ -22,42 +22,59 @@ type config struct {
 func loadConfig(client *http.Client, ghAPIToken string) (*config, error) {
 	curDir, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	namer, err := loadNamer()
-	if err != nil {
-		return nil, err
-	}
-
+	configPath := ""
+	searchDir := curDir
 	for {
-		configPath := filepath.Join(curDir, ".bine.json")
-		if _, err := os.Stat(configPath); err == nil {
-			data, err := os.ReadFile(configPath)
-			if err != nil {
-				return nil, err
-			}
-			cfg, err := unmarshal(data)
-			if err != nil {
-				return nil, err
-			}
-			namer.run(cfg)
-			for _, b := range cfg.Bins {
-				if err := b.loadProvider(client, ghAPIToken); err != nil {
-					return nil, err
-				}
-			}
-			return cfg, nil
-		}
-
-		parentDir := filepath.Dir(curDir)
-		if parentDir == curDir {
+		p := filepath.Join(searchDir, ".bine.json")
+		if _, err := os.Stat(p); err == nil {
+			configPath = p
 			break
 		}
-		curDir = parentDir
+
+		parentDir := filepath.Dir(searchDir)
+		if parentDir == searchDir {
+			break // Reached the root directory.
+		}
+		searchDir = parentDir
 	}
 
-	return nil, errors.New("configuration file .bine.json not found")
+	if configPath == "" {
+		return nil, errors.New("configuration file .bine.json not found")
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("read file %q: %v", configPath, err)
+	}
+
+	cfg, err := unmarshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal config %q: %v", configPath, err)
+	}
+
+	if namer, err := loadNamer(); err != nil {
+		return nil, fmt.Errorf("load config namer: %v", err)
+	} else {
+		namer.run(cfg)
+	}
+
+	if cfg.Project == "" {
+		return nil, fmt.Errorf("project name is empty in config file %q", configPath)
+	}
+
+	for _, b := range cfg.Bins {
+		if err := b.loadProvider(client, ghAPIToken); err != nil {
+			return nil, fmt.Errorf("load provider for bin %q: %v", b.Name, err)
+		}
+		if b.canonicalVersion() == "" {
+			return nil, fmt.Errorf("invalid version %q for binary %q: use semver", b.Version, b.Name)
+		}
+	}
+
+	return cfg, nil
 }
 
 func unmarshal(b []byte) (*config, error) {

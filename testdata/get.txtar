@@ -1,5 +1,10 @@
-setup .bine.json
+setup .bine-with-invalid-version.json
+! exec bine get perpignan
+! stdout .
+stderr 'invalid version'
+stderr 'use semver'
 
+setup .bine.json
 ! exec bine get
 ! stdout .
 stderr 'get requires one argument'
@@ -9,7 +14,7 @@ stderr 'get requires one argument'
 #
 
 bine get perpignan
-cmpenv stdout get1
+cmpenv stdout ../get1
 ! stderr .
 
 exec ls $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
@@ -33,7 +38,7 @@ stderr 'checksum verification failed'
 
 setup .bine-with-go-package.json
 bine get perpignan
-cmpenv stdout get1
+cmpenv stdout ../get1
 ! stderr .
 
 exec ls $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
@@ -60,7 +65,7 @@ stdout 'atlas v0\.31\.0'
 ! stderr .
 
 bine list --outdated
-cmp stdout atlas-ariga-outdated
+cmp stdout ../atlas-ariga-outdated
 ! stderr .
 
 -- .bine.json --
@@ -71,6 +76,18 @@ cmp stdout atlas-ariga-outdated
             "name": "perpignan",
             "url": "https://github.com/sevein/perpignan",
             "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}
+-- .bine-with-invalid-version.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "latest", // Use of "latest" is not allowed.
             "asset_pattern": "{name}_{version}_{goos}_{goarch}"
         }
     ]
