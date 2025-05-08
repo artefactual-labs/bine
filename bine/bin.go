@@ -38,7 +38,12 @@ func (b bin) goPkg() bool {
 	return b.GoPackage != ""
 }
 
+// canonicalVersion returns the canonical formatting of the semver version.
+// It returns an empty string if the version is not set.
 func (b bin) canonicalVersion() string {
+	if b.Version == "" {
+		return ""
+	}
 	return semver.Canonical("v" + strings.TrimPrefix(b.Version, "v"))
 }
 

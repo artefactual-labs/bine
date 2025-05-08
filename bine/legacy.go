@@ -12,33 +12,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/mholt/archives"
 )
-
-func cacheDir(baseDir, project string) (string, error) {
-	if project == "" {
-		return "", fmt.Errorf("project name is empty")
-	}
-
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-
-	var err error
-	if baseDir == "" {
-		baseDir, err = os.UserCacheDir()
-		if err != nil {
-			return "", err
-		}
-		baseDir = filepath.Join(baseDir, "bine")
-	}
-
-	cachePath := filepath.Join(baseDir, project, goos, goarch)
-
-	return cachePath, nil
-}
 
 func cached(binPath, versionMarker string) bool {
 	if _, err := os.Stat(binPath); os.IsNotExist(err) {
@@ -127,14 +104,12 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 		return fmt.Errorf("cannot find 'go' command: %v", err)
 	}
 
-	if b.Version == "" {
-		b.Version = "latest"
-	}
-	if b.Version != "latest" {
-		b.Version = fmt.Sprintf("v%s", strings.TrimPrefix(b.Version, "v"))
+	version := b.canonicalVersion()
+	if version == "" {
+		version = "latest"
 	}
 
-	packageName := fmt.Sprintf("%s@%s", b.GoPackage, b.Version)
+	packageName := fmt.Sprintf("%s@%s", b.GoPackage, version)
 
 	cmd := exec.CommandContext(ctx, goBin, "install", packageName)
 

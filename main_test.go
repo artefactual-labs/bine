@@ -27,16 +27,18 @@ func TestScripts(t *testing.T) {
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"setup": func(ts *testscript.TestScript, neg bool, args []string) {
+				cacheDir := filepath.Join(ts.Getenv("HOME"), ".cache")
+				projectDir := filepath.Join(ts.Getenv("WORK"), "project")
 				// Remove the cache directory if it exists.
-				err := os.RemoveAll(filepath.Join(ts.Getenv("HOME"), ".cache"))
-				ts.Check(err)
+				ts.Check(os.RemoveAll(cacheDir))
+				ts.Check(os.RemoveAll(projectDir))
+				// Create the project directory.
+				ts.Check(os.Mkdir(projectDir, os.FileMode(0o750)))
+				ts.Check(ts.Chdir(projectDir))
 				// Populate the configuration file.
 				if len(args) > 0 {
-					workDir := ts.Getenv("WORK")
-					filename := args[0]
-					config := ts.ReadFile(filename)
-					err = os.WriteFile(filepath.Join(workDir, ".bine.json"), []byte(config), 0o644)
-					ts.Check(err)
+					config := ts.ReadFile(filepath.Join(ts.Getenv("WORK"), args[0]))
+					ts.Check(os.WriteFile(filepath.Join(projectDir, ".bine.json"), []byte(config), 0o644))
 				}
 			},
 		},
