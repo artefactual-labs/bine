@@ -1,0 +1,44 @@
+setup .bine-original.json
+
+bine sync
+
+# Confirm that we've installed v1.0.0.
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan.git\tv1\.0\.0\+dirty'
+
+bine upgrade
+stdout 'Upgrade process completed'
+
+# Confirm that the upgrade happened.
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
+cmp .bine.json ../.bine-upgraded.json
+
+-- .bine-original.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}",
+            "checksum": "3a8e77e776d4732d556dce8fbfebd58b043c750bebfed576d3b0ad321bb5d1c6"
+        }
+    ]
+}
+
+-- .bine-upgraded.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.2",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}
+

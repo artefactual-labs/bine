@@ -6,6 +6,7 @@ toolchain go1.24.2
 
 require (
 	github.com/go-logr/logr v1.4.2
+	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/mholt/archives v0.1.1
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
@@ -24,7 +25,6 @@ require (
 	github.com/bodgit/windows v1.0.1 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
