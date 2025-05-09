@@ -222,6 +222,25 @@ func (b *Bine) Sync(ctx context.Context) error {
 	return nil
 }
 
+func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
+	updates, err := b.List(ctx, false, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(updates) > 0 {
+		if err := b.config.update(updates); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := b.Sync(ctx); err != nil {
+		return updates, err
+	}
+
+	return updates, nil
+}
+
 type ListItem struct {
 	Name               string `json:"name"`
 	Version            string `json:"version"`
