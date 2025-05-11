@@ -151,7 +151,7 @@ func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: status %s", resp.Status)
+		return fmt.Errorf("download failed: status %s (%s)", resp.Status, downloadURL)
 	}
 	f, err := os.CreateTemp("", "downloaded-*-"+filepath.Base(downloadURL))
 	if err != nil {
