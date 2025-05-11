@@ -1,36 +1,23 @@
-# We assume that go and bine have been already installed.
+# We assume that go is already installed.
+# We invoke `bine` via `go tool bine`, i.e. defined as a tool in `go.mod`.
 
 # Include `bine path` in our system path.
-export PATH := $(shell bine path):$(PATH)
+export PATH := $(shell go tool bine path):$(PATH)
 
 default: test
 
-# Install tparse using bine.
-tparse:
-	@echo Installing tparse...
-	@bine get tparse > /dev/null
-
-# Install go-mod-outdated using bine.
-go-mod-outdated:
-	@echo Installing go-mod-outdated...
-	@bine get go-mod-outdated > /dev/null
-
-# Install goa using bine.
-goa:
-	@echo Installing goa...
-	@bine get goa > /dev/null
+tool-%:
+	@echo Installing $*...
+	@go tool bine get $* 1> /dev/null
 
 # Test report.
-test: tparse
-	@echo Running tparse...
-	@go test -json -v ./... | tparse
+test: tool-tparse
+	go test -json -v ./... | tparse
 
 # List direct dependencies with updates available.
-deps: go-mod-outdated
-	@echo Running go + go-mod-outdated...
-	@go list -u -m -json all | go-mod-outdated -update -direct
+deps: tool-go-mod-outdated
+	go list -u -m -json all | go-mod-outdated -update -direct
 
 # Generate goa code.
-gen-goa: goa
-	@echo Generating goa code...
-	@goa --help
+gen-goa: tool-goa
+	goa --help
