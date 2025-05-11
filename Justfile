@@ -1,25 +1,28 @@
 #!/usr/bin/env -S just --justfile
 
-# Lazy evaluation of variables is not supported yet!
-GOLANGCI_LINT := `go tool bine get golangci-lint`
-GO_MOD_OUTDATED := `go tool bine get go-mod-outdated`
-TPARSE := `go tool bine get tparse`
+bine_path := `go tool bine path`
+export PATH := bine_path + ":" + env_var("PATH")
 
 [private]
 default:
   @just --list --unsorted
 
+[private]
+install tool:
+  @echo "Installing {{ tool }}..."
+  @go tool bine get {{ tool }} 1> /dev/null
+
 # Lint the code.
-lint:
-  @{{GOLANGCI_LINT}} run
+lint *args: (install "golangci-lint")
+  golangci-lint run {{ args }}
 
 # Format the code.
-fmt:
-  @{{GOLANGCI_LINT}} fmt
+fmt *args: (install "golangci-lint")
+  golangci-lint fmt {{ args }}
 
 # Print all available updates.
-deps:
-  @go list -u -m -json all | {{GO_MOD_OUTDATED}} -direct -update
+deps: (install "go-mod-outdated")
+  go list -u -m -json all | go-mod-outdated -direct -update
 
 # Print a coverage report.
 cov file="":

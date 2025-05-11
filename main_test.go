@@ -17,7 +17,6 @@ func TestMain(m *testing.M) {
 
 func TestScripts(t *testing.T) {
 	testscript.Run(t, testscript.Params{
-		UpdateScripts: true,
 		Dir:           "testdata",
 		Setup: func(env *testscript.Env) error {
 			// Enables testing of `bine version` command.

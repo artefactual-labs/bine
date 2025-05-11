@@ -11,7 +11,7 @@ stdout 'Upgrade process completed'
 
 # Confirm that the upgrade happened.
 exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
-stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
 
 cmp .bine.json ../.bine-upgraded.json
 
@@ -36,7 +36,7 @@ cmp .bine.json ../.bine-upgraded.json
         {
             "name": "perpignan",
             "url": "https://github.com/sevein/perpignan",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "asset_pattern": "{name}_{version}_{goos}_{goarch}"
         }
     ]
