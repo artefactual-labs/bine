@@ -13,15 +13,13 @@
             "name": "go-mod-outdated",
             "url": "https://github.com/psampaz/go-mod-outdated",
             "version": "0.9.0",
-            "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz",
-            "checksum": "ac5c60ef7350f34d49ebfb6e8e8d907c4c70b73e2141b21a5df7fc733e0fcbf4",
+            "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz"
         },
         {
-            "name": "tparse",
-            "url": "https://github.com/mfridman/tparse",
-            "version": "0.17.0",
-            "asset_pattern": "{name}_{goos}_{arch}",
-            "checksum": "b31d8eed38e4ab0ea753d2e3237dae659f44613d3e4c7d0ea8711d5c4e90ea0e",
-        },
+            "name": "gotestsum",
+            "url": "https://github.com/gotestyourself/gotestsum",
+            "version": "1.12.2",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}.tar.gz"
+        }
     ]
 }

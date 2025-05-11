@@ -12,6 +12,10 @@ install tool:
   @echo "Installing {{ tool }}..."
   @go tool bine get {{ tool }} 1> /dev/null
 
+# Test the code.
+test *args: (install "gotestsum")
+  gotestsum --format=testdox {{ args }}
+
 # Lint the code.
 lint *args: (install "golangci-lint")
   golangci-lint run {{ args }}
@@ -25,7 +29,7 @@ deps: (install "go-mod-outdated")
   go list -u -m -json all | go-mod-outdated -direct -update
 
 # Print a coverage report.
-cov file="":
+cov file="coverage.txt": (install "gotestsum")
   #!/usr/bin/env bash
   set -euo pipefail
   if [ -n "{{file}}" ]; then
@@ -33,6 +37,6 @@ cov file="":
   else
     tmpfile=$(mktemp)
   fi
-  go test -cover -coverpkg=./... -coverprofile="$tmpfile" ./... 1>/dev/null
+  gotestsum --format=testdox --junitfile junit.xml -- -cover -coverpkg=./... -coverprofile="$tmpfile" ./...
   go tool cover -func="$tmpfile"
   echo "coverprofile: $tmpfile (go tool cover -html=$tmpfile)"

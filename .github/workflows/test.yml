@@ -27,9 +27,12 @@ jobs:
       - name: Check linters
         run: just lint
       - name: Run tests
-        run: just cov coverage.txt
-      - name: Upload coverage reports to Codecov
+        run: just cov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: artefactual-labs/bine
+      - name: Upload test results to Codecov
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
