@@ -177,38 +177,16 @@ func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string
 	return nil
 }
 
+// extract the binary from the archive file and writes it to binPath.
 func extract(ctx context.Context, osf *os.File, binPath string) error {
 	fsys, err := archives.FileSystem(ctx, osf.Name(), osf)
 	if err != nil {
 		return fmt.Errorf("archives.FileSystem: %v", err)
 	}
 
-	var f fs.File
-
-	if ffs, ok := fsys.(archives.FileFS); ok {
-		f, err = ffs.Open(".")
-		if err != nil {
-			return fmt.Errorf("can't open binary file: %v", err)
-		}
-	} else {
-		err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if path == ".git" {
-				return fs.SkipDir
-			}
-			if !d.IsDir() && filepath.Base(path) == filepath.Base(binPath) {
-				f, err = fsys.Open(path)
-				if err != nil {
-					return fmt.Errorf("can't open binary file: %v", err)
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
-		}
+	f, err := findBinary(fsys, filepath.Base(binPath))
+	if err != nil {
+		return fmt.Errorf("find binary: %v", err)
 	}
 
 	// Create (or truncate) the destination file at binPath.
@@ -228,6 +206,54 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 	}
 
 	return nil
+}
+
+func findBinary(fsys fs.FS, name string) (_ fs.File, err error) {
+	if ffs, ok := fsys.(archives.FileFS); ok {
+		return ffs.Open(".")
+	}
+
+	var match string
+	if err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == ".git" {
+			return fs.SkipDir
+		}
+		if !d.IsDir() {
+			// We have a match if the filename matches or the file is executable.
+			if filepath.Base(path) == name {
+				match = path
+			} else {
+				if f, err := fsys.Open(path); err == nil {
+					if info, err := f.Stat(); err == nil {
+						if perm := info.Mode().Perm(); perm&0o111 != 0 {
+							match = path
+						}
+					}
+					_ = f.Close()
+				}
+			}
+		}
+		if match != "" {
+			return fs.SkipAll
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	if match == "" {
+		return nil, fmt.Errorf("no match for %q", name)
+	}
+
+	f, err := fsys.Open(match)
+	if err != nil {
+		return nil, err
+	}
+
+	return f, nil
 }
 
 func verify(b *bin, binPath string) error {
