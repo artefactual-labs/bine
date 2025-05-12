@@ -82,9 +82,6 @@ func loadConfig(client *http.Client, ghAPIToken string) (*config, error) {
 		if err := b.loadProvider(client, ghAPIToken); err != nil {
 			return nil, fmt.Errorf("load provider for bin %q: %v", b.Name, err)
 		}
-		if b.canonicalVersion() == "" {
-			return nil, fmt.Errorf("invalid version %q for binary %q: use semver", b.Version, b.Name)
-		}
 	}
 
 	return cfg, nil
@@ -104,7 +101,7 @@ func (c *config) update(updates []*ListItem) error {
 				if item.Latest != "" && b.Version != item.Latest {
 					b.Version = item.Latest
 					b.Checksum = ""
-					changes[b.Name] = item.Latest
+					changes[b.Name] = strings.TrimPrefix(item.Latest, "v")
 				}
 				break
 			}
@@ -222,7 +219,7 @@ func (n *namer) run() {
 		}
 		asset := b.AssetPattern
 		asset = strings.ReplaceAll(asset, "{name}", b.Name)
-		asset = strings.ReplaceAll(asset, "{version}", b.Version)
+		asset = strings.ReplaceAll(asset, "{version}", b.unprefixedVersion())
 		asset = strings.ReplaceAll(asset, "{goos}", runtime.GOOS)
 		asset = strings.ReplaceAll(asset, "{goarch}", runtime.GOARCH)
 		asset = strings.ReplaceAll(asset, "{os}", n.unameOS)

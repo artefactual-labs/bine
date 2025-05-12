@@ -1,9 +1,3 @@
-setup .bine-with-invalid-version.json
-! exec bine get perpignan
-! stdout .
-stderr 'invalid version'
-stderr 'use semver'
-
 setup .bine.json
 ! exec bine get
 ! stdout .
@@ -75,6 +69,15 @@ cmp stdout ../atlas-ariga-outdated
 setup .bine-with-temporal-binary.json
 bine get temporal-cli
 cmpenv stdout ../get-temporal-cli
+! stderr .
+
+#
+# Compatibility without semver.
+#
+
+setup .bine-with-jq-binary.json
+bine get jq
+cmpenv stdout ../get-jq
 ! stderr .
 
 -- .bine.json --
@@ -167,8 +170,22 @@ cmpenv stdout ../get-temporal-cli
         }
     ]
 }
+-- .bine-with-jq-binary.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "jq",
+            "url": "https://github.com/jqlang/jq",
+            "version": "jq-1.7.1",
+            "asset_pattern": "{name}-{goos}-{goarch}"
+        }
+    ]
+}
 -- get-temporal-cli --
 $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/temporal-cli
+-- get-jq --
+$WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/jq
 -- get-perpignan --
 $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
 -- atlas-ariga-outdated --

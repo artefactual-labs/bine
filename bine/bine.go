@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-retryablehttp"
+	"golang.org/x/mod/semver"
 )
 
 const (
@@ -242,8 +244,10 @@ func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
 }
 
 type ListItem struct {
-	Name               string `json:"name"`
-	Version            string `json:"version"`
+	Name string `json:"name"`
+	// Prefixed with "v" if it's a semver.
+	Version string `json:"version"`
+	// Prefixed with "v" if it's a semver.
 	Latest             string `json:"latest,omitempty"`
 	OutdatedCheckError string `json:"outdated_check_error,omitempty"`
 }
@@ -274,9 +278,14 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 			}
 		}
 
+		// Append the latest version with "v" prefix if it's a semver.
+		if ver := semver.Canonical("v" + strings.TrimPrefix(latestVersion, "v")); ver != "" {
+			latestVersion = "v" + latestVersion
+		}
+
 		items = append(items, &ListItem{
 			Name:               bin.Name,
-			Version:            bin.Version,
+			Version:            bin.usableVersion(),
 			Latest:             latestVersion,
 			OutdatedCheckError: outdatedCheckError,
 		})

@@ -39,12 +39,28 @@ func (b bin) goPkg() bool {
 }
 
 // canonicalVersion returns the canonical formatting of the semver version.
-// It returns an empty string if the version is not set.
+// Useful in contexts when semver-compliant versions MUST be present.
 func (b bin) canonicalVersion() string {
 	if b.Version == "" {
 		return ""
 	}
 	return semver.Canonical("v" + strings.TrimPrefix(b.Version, "v"))
+}
+
+// unprefixedVersion returns the version without the "v" prefix.
+// Useful in contexts when semver-compliant versions MAY be present.
+func (b bin) unprefixedVersion() string {
+	return strings.TrimPrefix(b.usableVersion(), "v")
+}
+
+// usableVersion falls back to the original version if semver is not available.
+// Useful in contexts where semver is not required, e.g. during downloads.
+func (b bin) usableVersion() string {
+	version := b.canonicalVersion()
+	if version == "" {
+		return b.Version
+	}
+	return version
 }
 
 func (b *bin) loadProvider(client *http.Client, ghAPIToken string) error {
@@ -159,7 +175,7 @@ type githubProvider struct {
 var _ binProvider = &githubProvider{}
 
 func (p *githubProvider) downloadURL(b *bin) (string, error) {
-	return fmt.Sprintf("%s/releases/download/v%s/%s", b.URL, b.Version, b.asset), nil
+	return fmt.Sprintf("%s/releases/download/%s/%s", b.URL, b.usableVersion(), b.asset), nil
 }
 
 type githubRelease struct {
