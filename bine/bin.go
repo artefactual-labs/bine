@@ -179,7 +179,8 @@ func (p *githubProvider) downloadURL(b *bin) (string, error) {
 }
 
 type githubRelease struct {
-	TagName string `json:"tag_name"`
+	TagName    string `json:"tag_name"`
+	Prerelease bool   `json:"prerelease"`
 }
 
 func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, error) {
@@ -222,9 +223,12 @@ func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, e
 		return "", fmt.Errorf("failed to decode GitHub API response: %v", err)
 	}
 
-	// Find the latest valid semver tag among the releases.
+	// Find the latest valid semver tag among the releases, skipping prereleases.
 	var latestSemver string
 	for _, release := range releases {
+		if release.Prerelease {
+			continue
+		}
 		tag := release.TagName
 		canonicalTag := semver.Canonical(tag)
 		if canonicalTag == "" {
@@ -236,7 +240,7 @@ func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, e
 	}
 
 	if latestSemver == "" {
-		return "", errors.New("no valid semver tags found in GitHub releases")
+		return "", errors.New("no valid non-prerelease semver tags found in GitHub releases")
 	}
 
 	return strings.TrimPrefix(latestSemver, "v"), nil
