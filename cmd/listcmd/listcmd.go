@@ -68,9 +68,9 @@ func (cfg *Config) Exec(ctx context.Context, _ []string) error {
 	// First, print items without errors.
 	for _, item := range items {
 		if item.OutdatedCheckError == "" {
-			line := fmt.Sprintf("%s v%s", item.Name, item.Version)
+			line := fmt.Sprintf("%s %s", item.Name, item.Version)
 			if item.Latest != "" {
-				line += fmt.Sprintf(" » v%s", item.Latest)
+				line += fmt.Sprintf(" » %s", item.Latest)
 			}
 			fmt.Fprintln(cfg.Stdout, line)
 		}
@@ -79,7 +79,7 @@ func (cfg *Config) Exec(ctx context.Context, _ []string) error {
 	// Then, print items with errors.
 	for _, item := range items {
 		if item.OutdatedCheckError != "" {
-			line := fmt.Sprintf("%s v%s", item.Name, item.Version)
+			line := fmt.Sprintf("%s %s", item.Name, item.Version)
 			line += fmt.Sprintf(" (%s)", item.OutdatedCheckError)
 			fmt.Fprintln(cfg.Stdout, line)
 		}

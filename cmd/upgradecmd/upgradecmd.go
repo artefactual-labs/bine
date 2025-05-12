@@ -53,7 +53,7 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 	}
 
 	for _, item := range updates {
-		line := fmt.Sprintf("%s v%s » v%s", item.Name, item.Version, item.Latest)
+		line := fmt.Sprintf("%s %s » %s", item.Name, item.Version, item.Latest)
 		fmt.Fprintln(cfg.Stdout, line)
 	}
 
