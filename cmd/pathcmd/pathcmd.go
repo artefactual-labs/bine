@@ -38,6 +38,7 @@ func (cfg *Config) Exec(ctx context.Context, _ []string) error {
 	b, err := bine.NewWithOptions(
 		bine.WithCacheDir(cfg.CacheDir),
 		bine.WithLogger(logger),
+		bine.WithGitHubAPIToken(cfg.GitHubAPIToken),
 	)
 	if err != nil {
 		return err
