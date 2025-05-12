@@ -14,7 +14,7 @@ stderr 'get requires one argument'
 #
 
 bine get perpignan
-cmpenv stdout ../get1
+cmpenv stdout ../get-perpignan
 ! stderr .
 
 exec ls $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
@@ -38,7 +38,7 @@ stderr 'checksum verification failed'
 
 setup .bine-with-go-package.json
 bine get perpignan
-cmpenv stdout ../get1
+cmpenv stdout ../get-perpignan
 ! stderr .
 
 exec ls $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
@@ -66,6 +66,15 @@ stdout 'atlas v0\.31\.0'
 
 bine list --outdated
 cmp stdout ../atlas-ariga-outdated
+! stderr .
+
+#
+# Extraction.
+#
+
+setup .bine-with-temporal-binary.json
+bine get temporal-cli
+cmpenv stdout ../get-temporal-cli
 ! stderr .
 
 -- .bine.json --
@@ -143,7 +152,24 @@ cmp stdout ../atlas-ariga-outdated
         }
     ]
 }
--- get1 --
+-- .bine-with-temporal-binary.json --
+{
+    "project": "test",
+    "bins": [
+        // The archive contains two files: LICENSE and temporal.
+        // We test that bine can find the "temporal" binary given that the
+        // name attribute is named "temporal-cli".
+        {
+            "name": "temporal-cli",
+            "url": "https://github.com/temporalio/cli",
+            "version": "0.10.6",
+            "asset_pattern": "temporal_cli_{version}_{goos}_{goarch}.tar.gz"
+        }
+    ]
+}
+-- get-temporal-cli --
+$WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/temporal-cli
+-- get-perpignan --
 $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
 -- atlas-ariga-outdated --
 atlas v0.31.0 » v0.32.0
