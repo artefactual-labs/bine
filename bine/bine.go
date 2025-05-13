@@ -24,8 +24,9 @@ type Bine struct {
 	client *http.Client
 	config *config
 
-	CacheDir string // e.g. ~/.cache/bine/project/linux/amd64/
-	BinDir   string // e.g. ~/.cache/bine/project/linux/amd64/bin/
+	CacheDir    string // e.g. ~/.cache/bine/project/linux/amd64/
+	BinDir      string // e.g. ~/.cache/bine/project/linux/amd64/bin/
+	VersionsDir string // e.g. ~/.cache/bine/project/linux/amd64/versions/
 }
 
 // New creates a new Bine instance with default options.
@@ -108,13 +109,15 @@ func newBine(optsConfig *options) (*Bine, error) {
 	} else {
 		b.CacheDir = cacheDir
 		b.BinDir = filepath.Join(cacheDir, "bin")
+		b.VersionsDir = filepath.Join(cacheDir, "versions")
 	}
 
 	return b, nil
 }
 
-// cacheDir returns the cache directory for the given project. Only called once
-// at startup.
+// cacheDir returns the cache directory for the given project.
+//
+// Only called once at startup.
 func (b *Bine) cacheDir(baseDir string) (string, error) {
 	project := b.config.Project
 
@@ -144,32 +147,81 @@ func (b *Bine) load(name string) (*bin, error) {
 	}
 
 	if bin == nil {
-		return nil, fmt.Errorf("load: binary not found")
+		return nil, fmt.Errorf("binary %q not found", name)
 	}
 
 	return bin, nil
 }
 
-// install a binary given its config.
+// install ensures that the given binary is installed.
 func (b *Bine) install(ctx context.Context, bin *bin) (string, error) {
-	path, err := ensureInstalled(ctx, b.client, bin, b.CacheDir)
-	if err != nil {
-		return "", fmt.Errorf("install: %v", err)
+	binPath := filepath.Join(b.BinDir, bin.Name)
+
+	// If version marker exists, assume binary is already installed.
+	if ok, err := b.installed(bin); ok {
+		return binPath, nil
+	} else if err != nil {
+		return "", fmt.Errorf("failed to check if binary is installed: %v", err)
 	}
 
-	return path, nil
+	// Ensure the bin directory exists.
+	if err := os.MkdirAll(b.BinDir, 0o750); err != nil {
+		return "", fmt.Errorf("failed to create bin directory: %v", err)
+	}
+
+	if bin.goPkg() {
+		if err := goInstall(ctx, bin, b.BinDir); err != nil {
+			return "", fmt.Errorf("failed to install Go tool: %v", err)
+		}
+	} else {
+		if err := binInstall(ctx, b.client, bin, binPath); err != nil {
+			return "", fmt.Errorf("failed to install binary: %v", err)
+		}
+	}
+
+	if err := b.markVersion(bin); err != nil {
+		return "", err
+	}
+
+	return binPath, nil
 }
 
-// installed checks if a binary is already installed.
-func (b *Bine) installed(name string) (bool, error) {
-	bin, err := b.load(name)
-	if err != nil {
-		return false, fmt.Errorf("installed: %v", err)
+// installed determines if a binary is already installed.
+func (b *Bine) installed(bin *bin) (bool, error) {
+	binPath := filepath.Join(b.BinDir, bin.Name)
+	versionMarker := filepath.Join(b.CacheDir, "versions", bin.Name, bin.Version)
+
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
 	}
 
-	ok := installed(bin, b.CacheDir)
+	if _, err := os.Stat(versionMarker); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
 
-	return ok, nil
+	return true, nil
+}
+
+// markVersion creates a version marker file for the binary.
+func (b *Bine) markVersion(bin *bin) error {
+	versionsDir := filepath.Join(b.VersionsDir, bin.Name)
+	versionMarker := filepath.Join(versionsDir, bin.Version)
+
+	// Ensure the versions directory exists.
+	if err := os.MkdirAll(versionsDir, 0o750); err != nil {
+		return fmt.Errorf("failed to create versions directory: %v", err)
+	}
+
+	f, err := os.Create(versionMarker)
+	if err != nil {
+		return fmt.Errorf("failed to create version marker: %v", err)
+	}
+
+	return f.Close()
 }
 
 // Get retrieves the path to a binary given its name.
@@ -257,7 +309,7 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 
 	for _, bin := range b.config.Bins {
 		if installedOnly {
-			ok, err := b.installed(bin.Name)
+			ok, err := b.installed(bin)
 			if err != nil {
 				return nil, fmt.Errorf("list: %v", err)
 			} else if !ok {
