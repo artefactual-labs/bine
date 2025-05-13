@@ -23,8 +23,7 @@ cmp .bine.json ../.bine-upgraded.json
             "name": "perpignan",
             "url": "https://github.com/sevein/perpignan",
             "version": "1.0.0",
-            "asset_pattern": "{name}_{version}_{goos}_{goarch}",
-            "checksum": "3a8e77e776d4732d556dce8fbfebd58b043c750bebfed576d3b0ad321bb5d1c6"
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
         }
     ]
 }

@@ -25,9 +25,6 @@ type bin struct {
 	// Field for go-based installs.
 	GoPackage string `json:"go_package,omitempty"`
 
-	// Optional field for SHA256 checksum verification.
-	Checksum string `json:"checksum,omitempty"`
-
 	// asset is computed by the namer when the config is loaded.
 	asset string
 

@@ -18,15 +18,6 @@ exec $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
 stderr 'hello world\!'
 
 #
-# Verifies checksum during download of binary.
-#
-
-setup .bine-with-checksum.json
-! bine get perpignan
-! stdout .
-stderr 'checksum verification failed'
-
-#
 # Builds Go binary.
 #
 
@@ -104,20 +95,6 @@ cmpenv stdout ../get-jq
         }
     ]
 }
--- .bine-with-checksum.json --
-{
-    "project": "test",
-    "bins": [
-        {
-            "name": "perpignan",
-            "url": "https://github.com/sevein/perpignan",
-            "version": "1.0.0",
-            "asset_pattern": "{name}_{version}_{goos}_{goarch}",
-            // Actual checksum: "3a8e77e776d4732d556dce8fbfebd58b043c750bebfed576d3b0ad321bb5d1c6".
-            "checksum": "0000000076d4732d556dce8fbfebd58b043c750bebfed576d3b0ad321bb5d1c6"
-        }
-    ]
-}
 -- .bine-with-go-package.json --
 {
     "project": "test",
@@ -189,4 +166,4 @@ $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/jq
 -- get-perpignan --
 $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
 -- atlas-ariga-outdated --
-atlas v0.31.0 » v0.32.0
+atlas v0.31.0 » v0.33.0

@@ -100,7 +100,6 @@ func (c *config) update(updates []*ListItem) error {
 			if b.Name == item.Name {
 				if item.Latest != "" && b.Version != item.Latest {
 					b.Version = item.Latest
-					b.Checksum = ""
 					changes[b.Name] = strings.TrimPrefix(item.Latest, "v")
 				}
 				break
@@ -145,15 +144,11 @@ func (c *config) update(updates []*ListItem) error {
 		if !ok {
 			continue
 		}
-		// Modify the version attribute.
+		// Modify the version attribute using JSON Patch.
 		patchReplace := fmt.Appendf(nil, `[{"op": "replace", "path": "/bins/%d/version", "value": "%s"}]`, index, latest)
 		if err := tree.Patch(patchReplace); err != nil {
 			return fmt.Errorf("patch replace: %v", err)
 		}
-
-		// Remove the checksum attribute, if it exists. Ignore errors.
-		patchRemove := fmt.Appendf(nil, `[{"op": "remove", "path": "/bins/%d/checksum"}]`, index)
-		_ = tree.Patch(patchRemove)
 	}
 
 	if _, err := f.Seek(0, io.SeekStart); err != nil {

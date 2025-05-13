@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/mholt/archives"
 )
@@ -38,19 +37,11 @@ func installed(b *bin, cacheDir string) bool {
 	return cached(binPath, versionMarker)
 }
 
-func ensureInstalled(ctx context.Context, client *http.Client, b *bin, cacheDir string) (ret string, err error) {
+func ensureInstalled(ctx context.Context, client *http.Client, b *bin, cacheDir string) (string, error) {
 	binDir := filepath.Join(cacheDir, "bin")
 	versionsDir := filepath.Join(cacheDir, "versions", b.Name)
 	binPath := filepath.Join(binDir, b.Name)
 	versionMarker := filepath.Join(versionsDir, b.Version)
-
-	defer func() {
-		if err == nil {
-			if verifyErr := verify(b, binPath); verifyErr != nil {
-				err = fmt.Errorf("checksum verification failed: %v", verifyErr)
-			}
-		}
-	}()
 
 	// If version marker exists, assume binary is already installed.
 	if cached(binPath, versionMarker) {
@@ -256,25 +247,7 @@ func findBinary(fsys fs.FS, name string) (_ fs.File, err error) {
 	return f, nil
 }
 
-func verify(b *bin, binPath string) error {
-	if b.Checksum == "" {
-		return nil
-	}
-
-	expected := b.Checksum
-
-	actual, err := checksum(binPath)
-	if err != nil {
-		return fmt.Errorf("verify: %v", err)
-	}
-
-	if !strings.EqualFold(expected, actual) {
-		return fmt.Errorf("verify: checksum mismatch for binary %q: expected %q but got %q", b.Name, expected, actual)
-	}
-
-	return nil
-}
-
+// checksum computes the SHA256 checksum of the file at filePath.
 func checksum(filePath string) (string, error) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return "nil", fmt.Errorf("checksum: file does not exist")
