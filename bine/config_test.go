@@ -18,8 +18,7 @@ func TestConfigUpdate(t *testing.T) {
             "name": "perpignan",
             "url": "https://github.com/sevein/perpignan",
             "version": "1.0.0",
-            "asset_pattern": "{name}_{version}_{goos}_{goarch}",
-            "checksum": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
         },
         // go-mod-outdated finds outdated deps.
         {
