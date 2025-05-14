@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/tailscale/hujson"
@@ -128,29 +127,22 @@ func (c *config) update(updates []*ListItem) error {
 		return fmt.Errorf("hujson parse: %v", err)
 	}
 
-	index := -1
-	for range tree.Find("/bins").All() {
-		index++
-		nv := tree.Find(fmt.Sprintf("/bins/%d/name", index))
-		if nv == nil {
+	// Modify the version attribute using JSON Patch.
+	for i := 0; ; i++ {
+		if binNode := tree.Find(fmt.Sprintf("/bins/%d", i)); binNode == nil {
 			break
-		}
-		name := nv.String()
-		unquoted, err := strconv.Unquote(strings.TrimSpace(name))
-		if err != nil {
-			return fmt.Errorf("unquote: %v", err)
-		}
-		latest, ok := changes[unquoted]
-		if !ok {
+		} else if nameNode := binNode.Find("/name"); nameNode == nil {
 			continue
-		}
-		// Modify the version attribute using JSON Patch.
-		patchReplace := fmt.Appendf(nil, `[{"op": "replace", "path": "/bins/%d/version", "value": "%s"}]`, index, latest)
-		if err := tree.Patch(patchReplace); err != nil {
+		} else if nameLiteral, ok := nameNode.Value.(hujson.Literal); !ok {
+			continue
+		} else if latest, ok := changes[nameLiteral.String()]; !ok {
+			continue
+		} else if err := binNode.Patch(fmt.Appendf(nil, `[{"op": "replace", "path": "/version", "value": "%s"}]`, latest)); err != nil {
 			return fmt.Errorf("patch replace: %v", err)
 		}
 	}
 
+	// Write the modified tree back to the file and truncate it to the new size.
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("seek file: %v", err)
 	}
