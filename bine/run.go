@@ -14,6 +14,9 @@ type IOStreams struct {
 	Stderr io.Writer
 }
 
+// run executes a command with the given arguments and streams.
+//
+// This is the core of `bine run`. Inspired by `go tool`.
 func run(ctx context.Context, path string, args []string, streams IOStreams) error {
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Stdin = streams.Stdin

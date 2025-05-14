@@ -16,6 +16,8 @@ import (
 	"github.com/mholt/archives"
 )
 
+// Supporting functions for installing binaries.
+
 // goInstall installs a Go tool using 'go install'.
 //
 // TODO: honour binPath - name the binary following the user's preference.
@@ -129,6 +131,9 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 	return nil
 }
 
+// findBinary searches the filesystem for a binary file with the given name.
+//
+// This is used when extracting a binary from an archive.
 func findBinary(fsys fs.FS, name string) (_ fs.File, err error) {
 	if ffs, ok := fsys.(archives.FileFS); ok {
 		return ffs.Open(".")
