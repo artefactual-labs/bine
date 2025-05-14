@@ -26,6 +26,7 @@ func TestScripts(t *testing.T) {
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
+			// `setup` flushes the cache directory entirely and populates the configuration file.
 			"setup": func(ts *testscript.TestScript, neg bool, args []string) {
 				cacheDir := filepath.Join(ts.Getenv("HOME"), ".cache")
 				projectDir := filepath.Join(ts.Getenv("WORK"), "project")
@@ -40,6 +41,12 @@ func TestScripts(t *testing.T) {
 					config := ts.ReadFile(filepath.Join(ts.Getenv("WORK"), args[0]))
 					ts.Check(os.WriteFile(filepath.Join(projectDir, ".bine.json"), []byte(config), 0o644))
 				}
+			},
+			// `config` only rewrites configuration file.
+			"config": func(ts *testscript.TestScript, neg bool, args []string) {
+				projectDir := filepath.Join(ts.Getenv("WORK"), "project")
+				config := ts.ReadFile(filepath.Join(ts.Getenv("WORK"), args[0]))
+				ts.Check(os.WriteFile(filepath.Join(projectDir, ".bine.json"), []byte(config), 0o644))
 			},
 		},
 	})

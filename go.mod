@@ -7,6 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.7.0
+	github.com/google/renameio/v2 v2.0.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/mholt/archives v0.1.1
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
