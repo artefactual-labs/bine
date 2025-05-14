@@ -71,6 +71,47 @@ bine get jq
 cmpenv stdout ../get-jq
 ! stderr .
 
+#
+# Performs upgrade.
+#
+
+setup .bine-with-perpignan.v1.0.2.json
+bine get perpignan
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+config .bine-with-perpignan.v1.0.3.json
+bine get perpignan
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
+
+#
+# Performs upgrade with empty marker.
+# bine used to populate an empty marker - we confirm backward compatibilty.
+#
+
+setup .bine-with-perpignan.v1.0.2.json
+bine get perpignan
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+exec bash -c 'cat /dev/null > $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/versions/perpignan/1.0.2'
+config .bine-with-perpignan.v1.0.3.json
+bine get perpignan
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
+
+#
+# Performs downgrade.
+#
+
+setup .bine-with-perpignan.v1.0.3.json
+bine get perpignan
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
+config .bine-with-perpignan.v1.0.2.json
+bine get perpignan
+exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
 -- .bine.json --
 {
     "project": "test",
@@ -79,6 +120,30 @@ cmpenv stdout ../get-jq
             "name": "perpignan",
             "url": "https://github.com/sevein/perpignan",
             "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}
+-- .bine-with-perpignan.v1.0.2.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.2",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}
+-- .bine-with-perpignan.v1.0.3.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.3",
             "asset_pattern": "{name}_{version}_{goos}_{goarch}"
         }
     ]

@@ -180,20 +180,20 @@ func findBinary(fsys fs.FS, name string) (_ fs.File, err error) {
 // checksum computes the SHA256 checksum of the file at filePath.
 func checksum(filePath string) (string, error) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return "nil", fmt.Errorf("checksum: file does not exist")
+		return "", err
 	} else if err != nil {
-		return "nil", fmt.Errorf("checksum: failed to stat file: %v", err)
+		return "", err
 	}
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return "nil", fmt.Errorf("checksum: failed to open file %v", err)
+		return "", err
 	}
 	defer f.Close()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
-		return "nil", fmt.Errorf("checksum: failed to hash file content %v", err)
+		return "", err
 	}
 
 	hash := h.Sum(nil)

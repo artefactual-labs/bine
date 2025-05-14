@@ -2,6 +2,8 @@ package bine
 
 import (
 	"context"
+	"crypto"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/google/renameio/v2"
 	"github.com/hashicorp/go-retryablehttp"
 	"golang.org/x/mod/semver"
 )
@@ -189,21 +192,55 @@ func (b *Bine) install(ctx context.Context, bin *bin) (string, error) {
 // installed determines if a binary is already installed.
 func (b *Bine) installed(bin *bin) (bool, error) {
 	binPath := filepath.Join(b.BinDir, bin.Name)
-	versionMarker := filepath.Join(b.CacheDir, "versions", bin.Name, bin.Version)
-
-	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+	if info, err := os.Stat(binPath); os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {
+		return false, err
+	} else if info.IsDir() {
+		return false, fmt.Errorf("expected %q to be a file, but it's a directory", binPath)
+	}
+
+	versionMarker := filepath.Join(b.VersionsDir, bin.Name, bin.Version)
+	blob, err := os.ReadFile(versionMarker)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
 		return false, err
 	}
 
-	if _, err := os.Stat(versionMarker); os.IsNotExist(err) {
+	// The version marker file may be empty (if made by older versions of bine).
+	// We report that the binary is not installed to ensure it's reinstalled
+	// with the correct version marker.
+	if len(blob) == 0 {
 		return false, nil
-	} else if err != nil {
+	}
+
+	var marker versionMarkerDocument
+	if err := json.Unmarshal(blob, &marker); err != nil {
 		return false, err
+	}
+
+	if sum, err := checksum(binPath); err != nil {
+		return false, fmt.Errorf("checksum: %v", err)
+	} else if !marker.Checksum.Matches(sum) {
+		return false, nil
 	}
 
 	return true, nil
+}
+
+type versionMarkerChecksum struct {
+	Algorithm string `json:"algorithm"`
+	Value     string `json:"value"`
+}
+
+func (c versionMarkerChecksum) Matches(sum string) bool {
+	return c.Algorithm == crypto.SHA256.String() || c.Value == sum
+}
+
+type versionMarkerDocument struct {
+	Checksum versionMarkerChecksum `json:"checksum"`
 }
 
 // markVersion creates a version marker file for the binary.
@@ -213,15 +250,27 @@ func (b *Bine) markVersion(bin *bin) error {
 
 	// Ensure the versions directory exists.
 	if err := os.MkdirAll(versionsDir, 0o750); err != nil {
-		return fmt.Errorf("failed to create versions directory: %v", err)
+		return fmt.Errorf("mkdir versions dir: %v", err)
 	}
 
-	f, err := os.Create(versionMarker)
+	binPath := filepath.Join(b.BinDir, bin.Name)
+	sum, err := checksum(binPath)
 	if err != nil {
-		return fmt.Errorf("failed to create version marker: %v", err)
+		return fmt.Errorf("checksum: %v", err)
 	}
 
-	return f.Close()
+	doc := versionMarkerDocument{
+		Checksum: versionMarkerChecksum{
+			Algorithm: crypto.SHA256.String(),
+			Value:     sum,
+		},
+	}
+	data, err := json.MarshalIndent(doc, "", "\t")
+	if err != nil {
+		return fmt.Errorf("json marshal: %v", err)
+	}
+
+	return renameio.WriteFile(versionMarker, data, 0o640, renameio.WithStaticPermissions(0o640))
 }
 
 // Get retrieves the path to a binary given its name.
