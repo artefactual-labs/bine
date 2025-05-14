@@ -17,7 +17,7 @@ test *args: (install "gotestsum")
   gotestsum --format=testdox {{ args }}
 
 # Lint the code.
-lint *args: (install "golangci-lint")
+lint *args="--fix": (install "golangci-lint")
   golangci-lint run {{ args }}
 
 # Format the code.

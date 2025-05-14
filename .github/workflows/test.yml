@@ -22,10 +22,8 @@ jobs:
         uses: extractions/setup-just@v2
       - name: Sync bine
         run: go tool bine sync
-      - name: Check formatters
-        run: just fmt
       - name: Check linters
-        run: just lint
+        run: just lint --fix=0
       - name: Run tests
         run: just cov
       - name: Upload coverage to Codecov
