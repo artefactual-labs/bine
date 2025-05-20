@@ -2,6 +2,7 @@ package upgradecmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -15,12 +16,14 @@ type Config struct {
 	*rootcmd.RootConfig
 	Command *ff.Command
 	Flags   *ff.FlagSet
+	DryRun  bool
 }
 
 func New(parent *rootcmd.RootConfig) *Config {
 	var cfg Config
 	cfg.RootConfig = parent
 	cfg.Flags = ff.NewFlagSet("run").SetParent(parent.Flags)
+	cfg.Flags.BoolVar(&cfg.DryRun, 0, "dry-run", "Show what would be done without actually doing it.")
 	cfg.Command = &ff.Command{
 		Name:      "upgrade",
 		Usage:     "bine upgrade",
@@ -43,7 +46,18 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 		return err
 	}
 
-	updates, err := b.Upgrade(ctx)
+	var upgradeFn func(ctx context.Context) ([]*bine.ListItem, error)
+	if cfg.DryRun {
+		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
+			return b.List(ctx, false, true)
+		}
+	} else {
+		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
+			return b.Upgrade(ctx)
+		}
+	}
+
+	updates, err := upgradeFn(ctx)
 	if err != nil {
 		return err
 	}
@@ -52,13 +66,24 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 		return nil
 	}
 
+	// Halt if any binary has an outdated check error.
+	for _, item := range updates {
+		if item.OutdatedCheckError != "" {
+			return errors.New(item.OutdatedCheckError)
+		}
+	}
+
 	for _, item := range updates {
 		line := fmt.Sprintf("%s %s » %s", item.Name, item.Version, item.Latest)
 		fmt.Fprintln(cfg.Stdout, line)
 	}
 
-	fmt.Fprintln(cfg.Stdout, "Upgrade process completed.")
-	fmt.Fprintln(cfg.Stdout, "Review the configuration file for any errors.")
+	if cfg.DryRun {
+		fmt.Fprintln(cfg.Stdout, "Remove the --dry-run flag to install the updates.")
+	} else {
+		fmt.Fprintln(cfg.Stdout, "Upgrade process completed.")
+		fmt.Fprintln(cfg.Stdout, "Review the configuration file for any errors.")
+	}
 
 	return nil
 }

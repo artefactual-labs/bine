@@ -6,6 +6,10 @@ bine sync
 exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
 stdout 'mod\tgithub\.com\/sevein\/perpignan.git\tv1\.0\.0\+dirty'
 
+bine upgrade --dry-run
+cmp stdout ../upgrade
+! stderr .
+
 bine upgrade
 stdout 'Upgrade process completed'
 
@@ -41,3 +45,6 @@ cmp .bine.json ../.bine-upgraded.json
     ]
 }
 
+-- upgrade --
+perpignan v1.0.0 » v1.0.3
+Remove the --dry-run flag to install the updates.

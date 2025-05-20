@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -329,6 +330,13 @@ func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
 	updates, err := b.List(ctx, false, true)
 	if err != nil {
 		return nil, err
+	}
+
+	// Halt if any binary has an outdated check error.
+	for _, item := range updates {
+		if item.OutdatedCheckError != "" {
+			return updates, errors.New("outdated check error")
+		}
 	}
 
 	if len(updates) > 0 {
