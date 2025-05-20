@@ -84,6 +84,10 @@ func WithGitHubAPIToken(token string) Option {
 
 // newBine creates a new Bine instance with the given options.
 func newBine(optsConfig *options) (*Bine, error) {
+	if optsConfig == nil {
+		optsConfig = &options{}
+	}
+
 	client := retryablehttp.NewClient()
 	client.RetryMax = 3
 	stdClient := client.StandardClient()
@@ -91,10 +95,6 @@ func newBine(optsConfig *options) (*Bine, error) {
 	config, err := loadConfig(stdClient, optsConfig.ghAPIToken)
 	if err != nil {
 		return nil, err
-	}
-
-	if optsConfig == nil {
-		optsConfig = &options{}
 	}
 
 	b := &Bine{

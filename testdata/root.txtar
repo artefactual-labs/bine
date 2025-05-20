@@ -1,0 +1,5 @@
+# Confirm error handling when parsing flags in the root command.
+setup
+! exec bine --invalid
+! stdout .
+stderr 'bine helps manage external binary tools needed for development projects'

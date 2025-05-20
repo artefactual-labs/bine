@@ -115,7 +115,7 @@ type goProvider struct {
 var _ binProvider = &goProvider{}
 
 func (p *goProvider) downloadURL(b *bin) (string, error) {
-	return fmt.Sprintf("%s/download/%s", b.GoPackage, b.asset), nil
+	return "", nil // Unused.
 }
 
 // latestVersion retrieves the latest version for a Go package binary.
