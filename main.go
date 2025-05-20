@@ -75,10 +75,15 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 			log.WithDebug(true),
 			log.WithLevel(root.Verbosity),
 		)
+		defer log.Sync(logger)
 	}
-	defer log.Sync(logger)
-	ctx = logr.NewContext(ctx, logger)
 
+	logger.V(1).Info("Starting bine.")
+
+	logger = logger.WithName(root.Command.GetSelected().Name)
+	logger.V(1).Info("Running command.", "args", args)
+
+	ctx = logr.NewContext(ctx, logger) // Pass the logger via context.
 	if err := root.Command.Run(ctx); err != nil {
 		return err
 	}
