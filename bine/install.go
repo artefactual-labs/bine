@@ -18,6 +18,8 @@ import (
 
 // Supporting functions for installing binaries.
 
+var execCommand = exec.CommandContext
+
 // goInstall installs a Go tool using 'go install'.
 //
 // TODO: honour binPath - name the binary following the user's preference.
@@ -34,13 +36,17 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 
 	packageName := fmt.Sprintf("%s@%s", b.GoPackage, version)
 
-	cmd := exec.CommandContext(ctx, goBin, "install", packageName)
-
 	binDir, err = filepath.Abs(binDir)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path for bin directory %s: %w", binDir, err)
+		return fmt.Errorf("failed to get absolute path for bin directory %s: %v", binDir, err)
 	}
-	cmd.Env = append(os.Environ(), "GOBIN="+binDir)
+
+	cmd := execCommand(ctx, goBin, "install", packageName)
+
+	// Set GOBIN to install the binary there. fakeExecCommand sets cmd.Env so
+	// we can't assume it's empty.
+	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(cmd.Env, "GOBIN="+binDir)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
