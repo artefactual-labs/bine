@@ -9,6 +9,8 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
+var ghToken = os.Getenv("BINE_GITHUB_API_TOKEN")
+
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
 		"bine": main,
@@ -23,6 +25,8 @@ func TestScripts(t *testing.T) {
 			env.Setenv("GOVERSION", runtime.Version())
 			// Set up environment variables for general testing.
 			env.Setenv("HOME", filepath.Join(env.Getenv("TMPDIR"), "homedir"))
+			// Pass the GitHub API token to the test environment.
+			env.Setenv("BINE_GITHUB_API_TOKEN", ghToken)
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
