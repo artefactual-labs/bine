@@ -3,10 +3,10 @@ package bine_test
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	"gotest.tools/v3/assert"
 
 	"github.com/artefactual-labs/bine/bine"
-	"github.com/go-logr/logr"
 )
 
 func TestNew(t *testing.T) {
