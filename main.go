@@ -13,6 +13,7 @@ import (
 	"github.com/peterbourgon/ff/v4/ffhelp"
 	"go.artefactual.dev/tools/log"
 
+	"github.com/artefactual-labs/bine/cmd/envcmd"
 	"github.com/artefactual-labs/bine/cmd/getcmd"
 	"github.com/artefactual-labs/bine/cmd/listcmd"
 	"github.com/artefactual-labs/bine/cmd/pathcmd"
@@ -50,6 +51,7 @@ func main() {
 func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (err error) {
 	var (
 		root = rootcmd.New(stdin, stdout, stderr)
+		_    = envcmd.New(root)
 		_    = getcmd.New(root)
 		_    = listcmd.New(root)
 		_    = pathcmd.New(root)

@@ -66,6 +66,12 @@ Or use bine to get the path to the binary:
     $ bine get golangci-lint
     /home/ethan/.cache/bine/project/linux/amd64/bin/golangci-lint
 
+You can also update the system PATH to include the directory where the binaries
+are stored. `bine env --help` describes how to do this for different shells,
+e.g. in Bash:
+
+    $ source <(bine env --shell=bash)
+
 For more examples, see the [`examples`] folder.
 
 ### Go module support
