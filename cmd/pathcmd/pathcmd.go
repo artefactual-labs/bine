@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 
-	"github.com/artefactual-labs/bine/bine"
 	"github.com/artefactual-labs/bine/cmd/rootcmd"
 )
 
@@ -34,17 +32,7 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, _ []string) error {
-	logger, _ := logr.FromContext(ctx)
-	b, err := bine.NewWithOptions(
-		bine.WithCacheDir(cfg.CacheDir),
-		bine.WithLogger(logger),
-		bine.WithGitHubAPIToken(cfg.GitHubAPIToken),
-	)
-	if err != nil {
-		return err
-	}
-
-	_, err = fmt.Fprintln(cfg.Stdout, b.BinDir)
+	_, err := fmt.Fprintln(cfg.Stdout, cfg.Bine.BinDir)
 
 	return err
 }

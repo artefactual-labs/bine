@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 
 	"github.com/artefactual-labs/bine/bine"
@@ -36,24 +35,14 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, args []string) error {
-	logger, _ := logr.FromContext(ctx)
-	b, err := bine.NewWithOptions(
-		bine.WithCacheDir(cfg.CacheDir),
-		bine.WithLogger(logger),
-		bine.WithGitHubAPIToken(cfg.GitHubAPIToken),
-	)
-	if err != nil {
-		return err
-	}
-
 	var upgradeFn func(ctx context.Context) ([]*bine.ListItem, error)
 	if cfg.DryRun {
 		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
-			return b.List(ctx, false, true)
+			return cfg.Bine.List(ctx, false, true)
 		}
 	} else {
 		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
-			return b.Upgrade(ctx)
+			return cfg.Bine.Upgrade(ctx)
 		}
 	}
 

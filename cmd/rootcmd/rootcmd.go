@@ -5,6 +5,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
+
+	"github.com/artefactual-labs/bine/bine"
 )
 
 type RootConfig struct {
@@ -17,6 +19,7 @@ type RootConfig struct {
 	GitHubAPIToken string
 	Flags          *ff.FlagSet
 	Command        *ff.Command
+	Bine           *bine.Bine
 }
 
 func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {

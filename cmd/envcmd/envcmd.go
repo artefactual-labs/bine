@@ -8,10 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 
-	"github.com/artefactual-labs/bine/bine"
 	"github.com/artefactual-labs/bine/cmd/rootcmd"
 )
 
@@ -62,20 +60,10 @@ eval "$(bine env)"
 }
 
 func (cfg *Config) Exec(ctx context.Context, _ []string) error {
-	logger, _ := logr.FromContext(ctx)
-	b, err := bine.NewWithOptions(
-		bine.WithCacheDir(cfg.CacheDir),
-		bine.WithLogger(logger),
-		bine.WithGitHubAPIToken(cfg.GitHubAPIToken),
-	)
-	if err != nil {
-		return err
-	}
-
 	shell := cfg.shell()
-	pathExport := cfg.formatPathExport(b.BinDir, shell)
+	pathExport := cfg.formatPathExport(cfg.Bine.BinDir, shell)
 
-	_, err = fmt.Fprintln(cfg.Stdout, pathExport)
+	_, err := fmt.Fprintln(cfg.Stdout, pathExport)
 
 	return err
 }
