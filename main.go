@@ -13,6 +13,7 @@ import (
 	"github.com/peterbourgon/ff/v4/ffhelp"
 	"go.artefactual.dev/tools/log"
 
+	"github.com/artefactual-labs/bine/bine"
 	"github.com/artefactual-labs/bine/cmd/envcmd"
 	"github.com/artefactual-labs/bine/cmd/getcmd"
 	"github.com/artefactual-labs/bine/cmd/listcmd"
@@ -80,16 +81,30 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	}
 
 	logger.V(1).Info("Starting bine.")
+	cmd := root.Command.GetSelected().Name
+	if cmd != "version" {
+		if b, err := build(logger, root); err != nil {
+			return err
+		} else {
+			root.Bine = b
+		}
+	}
 
-	logger = logger.WithName(root.Command.GetSelected().Name)
+	logger = logger.WithName(cmd)
 	logger.V(1).Info("Running command.", "args", args)
-
-	ctx = logr.NewContext(ctx, logger) // Pass the logger via context.
 	if err := root.Command.Run(ctx); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func build(logger logr.Logger, root *rootcmd.RootConfig) (*bine.Bine, error) {
+	return bine.NewWithOptions(
+		bine.WithCacheDir(root.CacheDir),
+		bine.WithLogger(logger),
+		bine.WithGitHubAPIToken(root.GitHubAPIToken),
+	)
 }
 
 func exitError(err error) int {

@@ -1,14 +1,29 @@
+# Prints help message.
+exec bine --help
+! stdout .
+
 # Confirm error handling when parsing flags in the root command.
-setup
+setup .bine.json
 ! exec bine --invalid
 ! stdout .
 stderr 'bine helps manage external binary tools needed for development projects'
 
 # Confirm error handling when subcommand (exit function) doesn't exist.
-setup
 ! exec bine subcmd
 ! stdout .
 cmp stderr ../noexec.txt
 
 -- noexec.txt --
 Command failed: bine: no exec function.
+-- .bine.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}

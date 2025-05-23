@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
 
 	"github.com/artefactual-labs/bine/bine"
@@ -40,21 +39,11 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 
 	name := args[0]
 
-	logger, _ := logr.FromContext(ctx)
-	b, err := bine.NewWithOptions(
-		bine.WithCacheDir(cfg.CacheDir),
-		bine.WithLogger(logger),
-		bine.WithGitHubAPIToken(cfg.GitHubAPIToken),
-	)
-	if err != nil {
-		return err
-	}
-
 	streams := bine.IOStreams{
 		Stdin:  cfg.Stdin,
 		Stdout: cfg.Stdout,
 		Stderr: cfg.Stderr,
 	}
 
-	return b.Run(ctx, name, args[1:], streams)
+	return cfg.Bine.Run(ctx, name, args[1:], streams)
 }
