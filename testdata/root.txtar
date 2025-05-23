@@ -3,3 +3,12 @@ setup
 ! exec bine --invalid
 ! stdout .
 stderr 'bine helps manage external binary tools needed for development projects'
+
+# Confirm error handling when subcommand (exit function) doesn't exist.
+setup
+! exec bine subcmd
+! stdout .
+cmp stderr ../noexec.txt
+
+-- noexec.txt --
+Command failed: bine: no exec function.

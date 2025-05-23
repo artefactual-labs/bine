@@ -1,11 +1,22 @@
 setup .bine.json
 
+# Requires name of the binary as an argument.
 ! bine run
 ! stdout .
 stderr 'run requires one argument'
 
+# Forwards the standard streams of the child process.
 bine run perpignan
+! stdout .
 stderr 'hello world\!'
+
+# Forwards the exit code of the child process.
+bine run leucate 0
+! stdout .
+! stderr .
+! bine run leucate 1
+! stdout .
+! stderr .
 
 -- .bine.json --
 {
@@ -14,6 +25,12 @@ stderr 'hello world\!'
         {
             "name": "perpignan",
             "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        },
+        {
+            "name": "leucate",
+            "url": "https://github.com/sevein/leucate",
             "version": "1.0.0",
             "asset_pattern": "{name}_{version}_{goos}_{goarch}"
         }
