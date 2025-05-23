@@ -34,13 +34,12 @@ func main() {
 		err    = exec(ctx, args, stdin, stdout, stderr)
 	)
 	switch {
-	case err == nil, errors.Is(err, ff.ErrHelp), errors.Is(err, ff.ErrNoExec):
+	case err == nil, errors.Is(err, ff.ErrHelp):
 		// Nothing to do.
 	default:
 		// Special handling for exec errors when running commands.
-		var exitErr *osexec.ExitError
-		if errors.As(err, &exitErr) {
-			os.Exit(exitErr.ExitCode())
+		if code := exitError(err); code > -1 {
+			os.Exit(code)
 		}
 
 		fmt.Fprintf(stderr, "Command failed: %v.\n", err)
@@ -91,4 +90,12 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	}
 
 	return nil
+}
+
+func exitError(err error) int {
+	var exitErr *osexec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+	return -1
 }
