@@ -19,8 +19,6 @@ import (
 
 // Supporting functions for installing binaries.
 
-var execCommand = exec.CommandContext
-
 // goInstall installs a Go tool using 'go install'.
 //
 // TODO: honour binPath - name the binary following the user's preference.
