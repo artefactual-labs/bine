@@ -103,6 +103,11 @@ func (b *bin) checkOutdated(ctx context.Context) (bool, string, error) {
 	return isOutdated, latestVersion, nil
 }
 
+// TODO: figure out a better way to handle downloads, i.e. downloadURL can't
+// connect to the backend and figure out the correct URL, e.g. in GitHub
+// releases, when downloading a binary from astral-sh/uv/releases, we need to
+// figure out whether the publisher is prefixing the version with "v" or not.
+// Perhaps the easiest is for the user to hint that with a config attr.
 type binProvider interface {
 	downloadURL(bin *bin) (string, error)
 	latestVersion(ctx context.Context, bin *bin) (string, error)
