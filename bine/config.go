@@ -7,9 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/tailscale/hujson"
@@ -70,11 +68,11 @@ func loadConfig(client *http.Client, ghAPIToken string) (*config, error) {
 		return nil, fmt.Errorf("project name is empty in config file %q", configPath)
 	}
 
-	if namer, err := createNamer(cfg); err != nil {
+	if namer, err := createNamer(); err != nil {
 		return nil, fmt.Errorf("load config namer: %v", err)
 	} else {
 		cfg.namer = namer
-		cfg.namer.run()
+		cfg.namer.run(cfg.Bins)
 	}
 
 	for _, b := range cfg.Bins {
@@ -109,7 +107,7 @@ func (c *config) update(updates []*ListItem) error {
 		return nil
 	}
 
-	c.namer.run()
+	c.namer.run(c.Bins)
 
 	f, err := os.OpenFile(c.path, os.O_RDWR, 0)
 	if err != nil {
@@ -169,69 +167,4 @@ func unmarshal(b []byte) (*config, error) {
 	}
 
 	return &c, nil
-}
-
-var (
-	goos   = runtime.GOOS
-	goarch = runtime.GOARCH
-)
-
-// namer computes the asset names defined in the configuration.
-type namer struct {
-	cfg       *config
-	unameOS   string // `uname -s`, e.g. "Linux", "Darwin"...
-	unameArch string // `uname -m`, e.g. "x86_64", "arm64"...
-}
-
-func createNamer(cfg *config) (*namer, error) {
-	n := namer{cfg: cfg}
-
-	out, err := exec.Command("uname", "-s").Output()
-	if err != nil {
-		return nil, fmt.Errorf("uname: %v", err)
-	}
-	n.unameOS = strings.TrimSpace(string(out))
-
-	out, err = exec.Command("uname", "-m").Output()
-	if err != nil {
-		return nil, fmt.Errorf("uname: %v", err)
-	}
-	n.unameArch = strings.TrimSpace(string(out))
-
-	return &n, nil
-}
-
-func (n *namer) run() {
-	if n == nil {
-		return
-	}
-	for _, b := range n.cfg.Bins {
-		if b.goPkg() {
-			continue
-		}
-		asset := b.AssetPattern
-		asset = strings.ReplaceAll(asset, "{name}", b.Name)
-		asset = strings.ReplaceAll(asset, "{version}", b.unprefixedVersion())
-		asset = strings.ReplaceAll(asset, "{goos}", n.applyModifier(b, "goos", goos))
-		asset = strings.ReplaceAll(asset, "{goarch}", n.applyModifier(b, "goarch", goarch))
-		asset = strings.ReplaceAll(asset, "{os}", n.applyModifier(b, "os", n.unameOS))
-		asset = strings.ReplaceAll(asset, "{arch}", n.applyModifier(b, "arch", n.unameArch))
-
-		b.asset = asset
-	}
-}
-
-// applyModifier applies template variable modifiers if they exist for the
-// given variable, e.g.: when expanding {goos}, the user chooses to replace
-// "darwin" with "osx".
-func (n *namer) applyModifier(b *bin, variable, originalValue string) string {
-	if b.Modifiers == nil {
-		return originalValue
-	} else if modifierMap, exists := b.Modifiers[variable]; !exists {
-		return originalValue
-	} else if modifiedValue, exists := modifierMap[originalValue]; exists {
-		return modifiedValue
-	}
-
-	return originalValue
 }
