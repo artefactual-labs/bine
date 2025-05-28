@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -100,7 +101,7 @@ func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string
 	}
 
 	if err := extract(ctx, f, binPath); err != nil {
-		return fmt.Errorf("download failed: %v", err)
+		return fmt.Errorf("extract failed: %v", err)
 	}
 
 	return nil
@@ -114,7 +115,9 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 	}
 
 	f, err := findBinary(fsys, filepath.Base(binPath))
-	if err != nil {
+	if errors.Is(err, archives.NoMatch) {
+		f = osf // TODO: archifes.FileFS is not reliable atm.
+	} else if err != nil {
 		return fmt.Errorf("find binary: %v", err)
 	}
 
@@ -127,7 +130,7 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 
 	// Copy the contents of the extracted file to the destination.
 	if _, err := io.Copy(dest, f); err != nil {
-		return err
+		return fmt.Errorf("copy: %v", err)
 	}
 
 	if err := os.Chmod(binPath, 0o755); err != nil {
@@ -141,8 +144,9 @@ func extract(ctx context.Context, osf *os.File, binPath string) error {
 //
 // This is used when extracting a binary from an archive.
 func findBinary(fsys fs.FS, name string) (_ fs.File, err error) {
-	if ffs, ok := fsys.(archives.FileFS); ok {
-		return ffs.Open(".")
+	if _, ok := fsys.(archives.FileFS); ok {
+		// TODO: open and return it once they fix the issue with brotli matching.
+		return nil, archives.NoMatch
 	}
 
 	var match string
