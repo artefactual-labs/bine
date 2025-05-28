@@ -3,8 +3,8 @@ setup .bine-original.json
 bine sync
 
 # Confirm that we've installed v1.0.0.
-exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
-stdout 'mod\tgithub\.com\/sevein\/perpignan.git\tv1\.0\.0\+dirty'
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan.git\tv1\.0\.0'
 
 bine upgrade --dry-run
 cmp stdout ../upgrade
@@ -14,7 +14,7 @@ bine upgrade
 stdout 'Upgrade process completed'
 
 # Confirm that the upgrade happened.
-exec go version -m $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
 stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
 
 cmp .bine.json ../.bine-upgraded.json

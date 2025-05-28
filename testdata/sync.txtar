@@ -4,10 +4,12 @@ bine sync
 ! stdout .
 ! stderr .
 
-exec ls $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
-stdout 'perpignan\n'
+# Confirm that the binary exists.
+exec test -f $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
 
-exec $WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin/perpignan
+# Confirm that the binary can be executed successfully.
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+! stdout .
 stderr 'hello world\!'
 
 -- .bine.json --

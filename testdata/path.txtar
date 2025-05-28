@@ -2,9 +2,11 @@ setup .bine.json
 
 bine path
 cmpenv stdout ../path1
+! stderr .
 
 bine path --cache-dir=/tmp/bine-cache-dir
-cmp stdout ../path2
+cmpenv stdout ../path2
+! stderr .
 
 -- .bine.json --
 {
@@ -19,6 +21,6 @@ cmp stdout ../path2
     ]
 }
 -- path1 --
-$WORK/.tmp/homedir/.cache/bine/test/linux/amd64/bin
+$BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin
 -- path2 --
-/tmp/bine-cache-dir/test/linux/amd64/bin
+/tmp/bine-cache-dir/test/$GOOS/$GOARCH/bin

@@ -27,6 +27,11 @@ func TestScripts(t *testing.T) {
 			env.Setenv("HOME", filepath.Join(env.Getenv("TMPDIR"), "homedir"))
 			// Pass the GitHub API token to the test environment.
 			env.Setenv("BINE_GITHUB_API_TOKEN", ghToken)
+			// Pass the cache directory to the test environment.
+			env.Setenv("BINE_CACHE_DIR", filepath.Join(env.Getenv("TMPDIR"), "homedir", ".cache"))
+			// These are useful during assertions.
+			env.Setenv("GOOS", runtime.GOOS)
+			env.Setenv("GOARCH", runtime.GOARCH)
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
