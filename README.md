@@ -99,6 +99,30 @@ The following variables are supported:
 * `{arch}`: The machine hardware name as reported by `uname -m` (e.g., `x86_64`,
   `arm64`).
 
+Use `modifiers` if you want to change some values after expansion, e.g.:
+
+```json
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "grpcurl",
+            "url": "https://github.com/fullstorydev/grpcurl",
+            "version": "1.9.3",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}.tar.gz",
+            "modifiers": {
+                "goos": {
+                    "darwin": "osx"
+                },
+                "goarch": {
+                    "amd64": "x86_64"
+                }
+            }
+        }
+    ]
+}
+```
+
 ## Authenticating to the GitHub Rest API
 
 If you downloading binaries from GitHub, you may need to authenticate to the
