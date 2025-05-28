@@ -158,7 +158,13 @@ func (b *Bine) load(name string) (*bin, error) {
 }
 
 // install ensures that the given binary is installed.
-func (b *Bine) install(ctx context.Context, bin *bin) (string, error) {
+func (b *Bine) install(ctx context.Context, bin *bin) (_ string, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("%q: %v", bin.Name, err)
+		}
+	}()
+
 	binPath := filepath.Join(b.BinDir, bin.Name)
 
 	// If version marker exists, assume binary is already installed.
