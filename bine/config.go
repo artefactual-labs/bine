@@ -171,6 +171,11 @@ func unmarshal(b []byte) (*config, error) {
 	return &c, nil
 }
 
+var (
+	goos   = runtime.GOOS
+	goarch = runtime.GOARCH
+)
+
 // namer computes the asset names defined in the configuration.
 type namer struct {
 	cfg       *config
@@ -207,11 +212,26 @@ func (n *namer) run() {
 		asset := b.AssetPattern
 		asset = strings.ReplaceAll(asset, "{name}", b.Name)
 		asset = strings.ReplaceAll(asset, "{version}", b.unprefixedVersion())
-		asset = strings.ReplaceAll(asset, "{goos}", runtime.GOOS)
-		asset = strings.ReplaceAll(asset, "{goarch}", runtime.GOARCH)
-		asset = strings.ReplaceAll(asset, "{os}", n.unameOS)
-		asset = strings.ReplaceAll(asset, "{arch}", n.unameArch)
+		asset = strings.ReplaceAll(asset, "{goos}", n.applyModifier(b, "goos", goos))
+		asset = strings.ReplaceAll(asset, "{goarch}", n.applyModifier(b, "goarch", goarch))
+		asset = strings.ReplaceAll(asset, "{os}", n.applyModifier(b, "os", n.unameOS))
+		asset = strings.ReplaceAll(asset, "{arch}", n.applyModifier(b, "arch", n.unameArch))
 
 		b.asset = asset
 	}
+}
+
+// applyModifier applies template variable modifiers if they exist for the
+// given variable, e.g.: when expanding {goos}, the user chooses to replace
+// "darwin" with "osx".
+func (n *namer) applyModifier(b *bin, variable, originalValue string) string {
+	if b.Modifiers == nil {
+		return originalValue
+	} else if modifierMap, exists := b.Modifiers[variable]; !exists {
+		return originalValue
+	} else if modifiedValue, exists := modifierMap[originalValue]; exists {
+		return modifiedValue
+	}
+
+	return originalValue
 }

@@ -2,12 +2,25 @@ package bine
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 )
+
+func modifyRuntime(t *testing.T, newGOOS, newGOARCH string) {
+	t.Helper()
+
+	goos = newGOOS
+	goarch = newGOARCH
+
+	t.Cleanup(func() {
+		goos = runtime.GOOS
+		goarch = runtime.GOARCH
+	})
+}
 
 func TestConfigUpdate(t *testing.T) {
 	configDoc := `{
@@ -100,5 +113,57 @@ func TestConfigUpdate(t *testing.T) {
         },
     ]
 }`))
+	})
+}
+
+func TestConfigModifiers(t *testing.T) {
+	t.Run("Applies modifiers correctly", func(t *testing.T) {
+		tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.json", `{
+    "project": "test",
+    "bins": [
+        {
+            "name": "grpcurl",
+            "url": "https://github.com/fullstorydev/grpcurl",
+            "version": "1.9.3",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}.tar.gz",
+            "modifiers": {
+                "goos": {
+                    "darwin": "osx"
+                },
+                "goarch": {
+                    "amd64": "x86_64"
+                }
+            }
+        },
+        {
+            "name": "perpignan",
+            "url": "https://github.com/sevein/perpignan",
+            "version": "1.0.0",
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        },
+    ]
+}`))
+		t.Chdir(tmpDir.Path())
+
+		modifyRuntime(t, "darwin", "arm64")
+
+		cfg, err := loadConfig(nil, "")
+		assert.NilError(t, err)
+
+		// grpcurl leverages the modifiers.
+		bin := cfg.Bins[0]
+		{
+			url, err := bin.provider.downloadURL(bin)
+			assert.NilError(t, err)
+			assert.Equal(t, url, "https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_osx_arm64.tar.gz")
+		}
+
+		// perpignan still works without modifiers.
+		bin = cfg.Bins[1]
+		{
+			url, err := bin.provider.downloadURL(bin)
+			assert.NilError(t, err)
+			assert.Equal(t, url, "https://github.com/sevein/perpignan/releases/download/v1.0.0/perpignan_1.0.0_darwin_arm64")
+		}
 	})
 }

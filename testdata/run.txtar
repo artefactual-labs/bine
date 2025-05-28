@@ -11,6 +11,7 @@ bine run perpignan
 stderr 'hello world\!'
 
 # Forwards the exit code of the child process.
+# Notice that the installation of leucate required modifiers.
 bine run leucate 0
 ! stdout .
 ! stderr .
@@ -32,7 +33,12 @@ bine run leucate 0
             "name": "leucate",
             "url": "https://github.com/sevein/leucate",
             "version": "1.0.0",
-            "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+            "asset_pattern": "{name}_{version}_{goos}_{goarch}",
+            "modifiers": {
+	        "goos": {
+		    "darwin": "osx"
+		}
+            }
         }
     ]
 }

@@ -25,6 +25,9 @@ type bin struct {
 	// Field for go-based installs.
 	GoPackage string `json:"go_package,omitempty"`
 
+	// Allows to apply modifications during variable expansion.
+	Modifiers map[string]map[string]string `json:"modifiers,omitempty"`
+
 	// asset is computed by the namer when the config is loaded.
 	asset string
 
