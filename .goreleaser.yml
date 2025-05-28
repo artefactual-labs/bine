@@ -8,6 +8,7 @@ builds:
   - id: bine
     goos:
       - linux
+      - darwin
     goarch:
       - amd64
       - arm64
