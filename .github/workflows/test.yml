@@ -8,24 +8,28 @@ on:
     branches:
       - "*"
 
+permissions:
+  contents: read
+
 jobs:
   test:
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - "ubuntu-24.04"
+          - "macos-14"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: Check mod tidy
         run: go mod tidy -diff
       - name: Install Just
         uses: extractions/setup-just@v2
-      - name: Sync bine
-        run: go tool bine sync
-      - name: Check linters
-        run: just lint --fix=0
       - name: Run tests
         run: just cov
         env:
@@ -38,3 +42,27 @@ jobs:
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+  mod:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check mod tidy
+        run: go mod tidy -diff
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install Just
+        uses: extractions/setup-just@v2
+      - name: Check linters
+        run: just lint --fix=0
