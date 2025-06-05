@@ -219,8 +219,9 @@ stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
         {
             "name": "jq",
             "url": "https://github.com/jqlang/jq",
-            "version": "jq-1.7.1",
+            "version": "1.7.1",
             "asset_pattern": "{name}-{goos}-{goarch}",
+            "tag_pattern": "{name}-{version}",
             "modifiers": {
               "goos": {
                 "darwin": "macos"
