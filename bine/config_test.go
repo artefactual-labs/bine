@@ -74,7 +74,7 @@ func TestConfigUpdate(t *testing.T) {
 		tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.json", configDoc))
 
 		t.Chdir(tmpDir.Path())
-		cfg, err := loadConfig(nil, "")
+		cfg, err := loadConfig(t.Context(), nil, "")
 		assert.NilError(t, err)
 
 		err = cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
@@ -147,7 +147,7 @@ func TestConfigModifiers(t *testing.T) {
 
 		modifyRuntime(t, "darwin", "arm64")
 
-		cfg, err := loadConfig(nil, "")
+		cfg, err := loadConfig(t.Context(), nil, "")
 		assert.NilError(t, err)
 
 		// grpcurl leverages the modifiers.

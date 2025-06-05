@@ -35,7 +35,7 @@ type Bine struct {
 
 // New creates a new Bine instance with default options.
 func New() (*Bine, error) {
-	return newBine(nil)
+	return newBine(context.Background(), nil)
 }
 
 // NewWithOptions creates a new Bine instance with the given options.
@@ -47,16 +47,31 @@ func NewWithOptions(opts ...Option) (*Bine, error) {
 		}
 	}
 
-	return newBine(&optsConfig)
+	ctx := optsConfig.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return newBine(ctx, &optsConfig)
 }
 
 // Option configures a Bine instance (used by NewWithOptions).
 type Option func(*options) error
 
 type options struct {
+	ctx          context.Context
 	logger       *logr.Logger
 	cacheDirBase string
 	ghAPIToken   string
+}
+
+// WithContext specifies a custom context for the Bine instance.
+// This context is only used during the initial configuration load.
+func WithContext(ctx context.Context) Option {
+	return func(o *options) error {
+		o.ctx = ctx
+		return nil
+	}
 }
 
 // WithLogger specifies a custom logger for the Bine instance.
@@ -84,7 +99,7 @@ func WithGitHubAPIToken(token string) Option {
 }
 
 // newBine creates a new Bine instance with the given options.
-func newBine(optsConfig *options) (*Bine, error) {
+func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 	if optsConfig == nil {
 		optsConfig = &options{}
 	}
@@ -93,7 +108,7 @@ func newBine(optsConfig *options) (*Bine, error) {
 	client.RetryMax = 3
 	stdClient := client.StandardClient()
 
-	config, err := loadConfig(stdClient, optsConfig.ghAPIToken)
+	config, err := loadConfig(ctx, stdClient, optsConfig.ghAPIToken)
 	if err != nil {
 		return nil, err
 	}

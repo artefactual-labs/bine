@@ -45,7 +45,7 @@ func TestHelperRustcFailed(t *testing.T) {
 func TestNamer(t *testing.T) {
 	t.Run("Computes triple with rustc", func(t *testing.T) {
 		injectFakeExec(t, "TestHelperRustcTriple")
-		n, err := createNamer()
+		n, err := createNamer(t.Context())
 		assert.NilError(t, err)
 
 		bins := []*bin{{AssetPattern: "{triple}"}}
@@ -56,7 +56,7 @@ func TestNamer(t *testing.T) {
 
 	t.Run("Computes triple without rustc", func(t *testing.T) {
 		injectFakeExec(t, "TestHelperRustcFailed")
-		n, err := createNamer()
+		n, err := createNamer(t.Context())
 		assert.NilError(t, err)
 
 		bins := []*bin{{AssetPattern: "{triple}"}}

@@ -1,6 +1,7 @@
 package bine
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,7 +28,7 @@ type config struct {
 
 // loadConfig loads the configuration file from the current working directory
 // or its parent directories.
-func loadConfig(client *http.Client, ghAPIToken string) (*config, error) {
+func loadConfig(ctx context.Context, client *http.Client, ghAPIToken string) (*config, error) {
 	curDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current working directory: %w", err)
@@ -68,7 +69,7 @@ func loadConfig(client *http.Client, ghAPIToken string) (*config, error) {
 		return nil, fmt.Errorf("project name is empty in config file %q", configPath)
 	}
 
-	if namer, err := createNamer(); err != nil {
+	if namer, err := createNamer(ctx); err != nil {
 		return nil, fmt.Errorf("load config namer: %v", err)
 	} else {
 		cfg.namer = namer

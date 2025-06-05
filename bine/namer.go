@@ -28,10 +28,8 @@ type namer struct {
 	triple string
 }
 
-func createNamer() (*namer, error) {
+func createNamer(ctx context.Context) (*namer, error) {
 	n := namer{}
-
-	ctx := context.TODO()
 
 	out, err := execCommand(ctx, "uname", "-s").Output()
 	if err != nil {
