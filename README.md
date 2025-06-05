@@ -82,9 +82,12 @@ are Go modules installable via `go install`.
 For an example, check out how the [`make`] uses bine to install a binary
 directly from a Go module.
 
-### Variable expansion
+### Asset patterns
 
-The `asset_pattern` field in the configuration supports variable expansion to help construct the correct asset filename for download. Bine replaces placeholders within this pattern based on the binary's definition and the environment where `bine` is run.
+The `asset_pattern` field in the configuration supports variable expansion to
+help construct the correct asset filename for download. Bine replaces
+placeholders within this pattern based on the binary's definition and the
+environment where `bine` is run.
 
 The following variables are supported:
 
@@ -98,6 +101,7 @@ The following variables are supported:
   `Darwin`).
 * `{arch}`: The machine hardware name as reported by `uname -m` (e.g., `x86_64`,
   `arm64`).
+* `{triple}` The "target triple" used in rustc.
 
 Use `modifiers` if you want to change some values after expansion, e.g.:
 
@@ -122,6 +126,36 @@ Use `modifiers` if you want to change some values after expansion, e.g.:
     ]
 }
 ```
+
+### Tag patterns
+
+Similarly, the `tag_pattern` field supports variable expansion to help construct
+the correct tag used to fetch the binary from GitHub releases.
+
+For example:
+
+```json
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "jq",
+            "url": "https://github.com/jqlang/jq",
+            "version": "1.7.1",
+            "asset_pattern": "{name}-{goos}-{goarch}",
+            "tag_pattern": "{name}-{version}",
+            "modifiers": {
+              "goos": {
+                "darwin": "macos"
+              }
+            }
+        }
+    ]
+}
+```
+
+This is necessary because jq names its tags like `jq-1.8.0`, as opposed to the
+most common `v1.8.0` style seen in many other projects.
 
 ## Authenticating to the GitHub Rest API
 

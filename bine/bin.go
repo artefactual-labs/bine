@@ -22,6 +22,10 @@ type bin struct {
 	URL          string `json:"url,omitempty"`
 	AssetPattern string `json:"asset_pattern,omitempty"`
 
+	// Template for tag formatting. Supports {version} placeholder.
+	// Defaults to "v{version}" if not specified.
+	TagPattern string `json:"tag_pattern,omitempty"`
+
 	// Field for go-based installs.
 	GoPackage string `json:"go_package,omitempty"`
 
@@ -61,6 +65,18 @@ func (b bin) usableVersion() string {
 		return b.Version
 	}
 	return version
+}
+
+// tag returns the tag name based on the tag template and version.
+// If no tag template is specified, defaults to "v{version}".
+func (b bin) tag() string {
+	template := b.TagPattern
+	if template == "" {
+		template = "v{version}"
+	}
+	template = strings.ReplaceAll(template, "{version}", b.unprefixedVersion())
+	template = strings.ReplaceAll(template, "{name}", b.Name)
+	return template
 }
 
 func (b *bin) loadProvider(client *http.Client, ghAPIToken string) error {
@@ -175,7 +191,7 @@ type githubProvider struct {
 var _ binProvider = &githubProvider{}
 
 func (p *githubProvider) downloadURL(b *bin) (string, error) {
-	return fmt.Sprintf("%s/releases/download/%s/%s", b.URL, b.usableVersion(), b.asset), nil
+	return fmt.Sprintf("%s/releases/download/%s/%s", b.URL, b.tag(), b.asset), nil
 }
 
 type githubRelease struct {
