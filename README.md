@@ -97,7 +97,6 @@ its structure:
 
 ```jsonc
 {
-{
   // A unique name for your project. Used to create a scoped cache directory.
   "project": "string",
 
@@ -242,7 +241,7 @@ replacing dependency management in Make-based projects like [`makego`].
 Nix provides fully reproducible and isolated development environments, while
 bine focuses on simple version management for tools.
 
-## How does bine integrate with integration or build systems?
+### How does bine integrate with integration or build systems?
 
 We have [`examples`] showing hwo to use *bine* with [`make`] and [`just`].
 
