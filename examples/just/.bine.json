@@ -1,0 +1,11 @@
+{
+    "project": "bine",
+    "bins": [
+        {
+            "name": "golangci-lint",
+            "url": "https://github.com/golangci/golangci-lint",
+            "version": "2.1.6",
+            "asset_pattern": "{name}-{version}-{goos}-{goarch}.tar.gz"
+        }
+    ]
+}

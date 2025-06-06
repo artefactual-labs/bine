@@ -1,0 +1,21 @@
+#!/usr/bin/env -S just --justfile
+
+bine_path := `go tool bine path`
+export PATH := bine_path + ":" + env_var("PATH")
+
+[private]
+default:
+  @just --list --unsorted
+
+[private]
+install tool:
+  @echo "Installing {{ tool }}..."
+  @go tool bine get {{ tool }} 1> /dev/null
+
+# Lint the code.
+lint *args="--fix": (install "golangci-lint")
+  golangci-lint run {{ args }}
+
+# Format the code.
+fmt *args: (install "golangci-lint")
+  golangci-lint fmt {{ args }}
