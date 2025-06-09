@@ -14,7 +14,7 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
 	go.artefactual.dev/tools v0.20.0
-	golang.org/x/mod v0.24.0
+	golang.org/x/mod v0.25.0
 	gotest.tools/v3 v3.5.2
 )
 
