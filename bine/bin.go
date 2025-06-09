@@ -67,13 +67,17 @@ func (b bin) usableVersion() string {
 	return version
 }
 
+func (b bin) tagPattern() string {
+	if b.TagPattern == "" {
+		return "v{version}"
+	}
+	return b.TagPattern
+}
+
 // tag returns the tag name based on the tag template and version.
 // If no tag template is specified, defaults to "v{version}".
 func (b bin) tag() string {
-	template := b.TagPattern
-	if template == "" {
-		template = "v{version}"
-	}
+	template := b.tagPattern()
 	template = strings.ReplaceAll(template, "{version}", b.unprefixedVersion())
 	template = strings.ReplaceAll(template, "{name}", b.Name)
 	return template
@@ -194,6 +198,28 @@ func (p *githubProvider) downloadURL(b *bin) (string, error) {
 	return fmt.Sprintf("%s/releases/download/%s/%s", b.URL, b.tag(), b.asset), nil
 }
 
+// extractVersionFromTag extracts a version from a tag name using the binary's
+// tag pattern.
+func (p *githubProvider) extractVersionFromTag(bin *bin, tagName string) (string, bool) {
+	// Escape special regex characters and create capture group for version.
+	regexPattern := regexp.QuoteMeta(bin.tagPattern())
+	regexPattern = strings.ReplaceAll(regexPattern, "\\{version\\}", "(.+)")
+	regexPattern = strings.ReplaceAll(regexPattern, "\\{name\\}", regexp.QuoteMeta(bin.Name))
+	regexPattern = "^" + regexPattern + "$"
+
+	tagRegex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", false
+	}
+
+	matches := tagRegex.FindStringSubmatch(tagName)
+	if len(matches) < 2 {
+		return "", false
+	}
+
+	return matches[1], true
+}
+
 type githubRelease struct {
 	TagName    string `json:"tag_name"`
 	Prerelease bool   `json:"prerelease"`
@@ -239,27 +265,37 @@ func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, e
 		return "", fmt.Errorf("failed to decode GitHub API response: %v", err)
 	}
 
-	// Find the latest valid semver tag among the releases, skipping prereleases.
+	// Find the latest valid semver version among the releases, skipping prereleases.
 	var latestSemver string
+	var latestVersion string
 	for _, release := range releases {
 		if release.Prerelease {
 			continue
 		}
-		tag := release.TagName
-		canonicalTag := semver.Canonical(tag)
-		if canonicalTag == "" {
+
+		// Extract version from tag using the configured tag pattern.
+		extractedVersion, matched := p.extractVersionFromTag(bin, release.TagName)
+		if !matched {
 			continue
 		}
-		if latestSemver == "" || semver.Compare(canonicalTag, latestSemver) > 0 {
-			latestSemver = canonicalTag
+
+		// Validate that the extracted version is a valid semver.
+		canonicalVersion := semver.Canonical("v" + strings.TrimPrefix(extractedVersion, "v"))
+		if canonicalVersion == "" {
+			continue
+		}
+
+		if latestSemver == "" || semver.Compare(canonicalVersion, latestSemver) > 0 {
+			latestSemver = canonicalVersion
+			latestVersion = extractedVersion
 		}
 	}
 
-	if latestSemver == "" {
-		return "", errors.New("no valid non-prerelease semver tags found in GitHub releases")
+	if latestVersion == "" {
+		return "", errors.New("no valid non-prerelease semver tags found in GitHub releases matching tag pattern")
 	}
 
-	return strings.TrimPrefix(latestSemver, "v"), nil
+	return strings.TrimPrefix(latestVersion, "v"), nil
 }
 
 type arigaProvider struct {
