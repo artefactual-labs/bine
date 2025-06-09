@@ -31,9 +31,9 @@ cmp stdout ../list-outdated
 stderr 'performing request'
 
 # Discovers outdated Go binaries.
-setup .bine2.json
+setup .bine-go.json
 bine list --outdated
-cmp stdout ../list-outdated
+cmp stdout ../list-outdated-go
 ! stderr .
 
 -- .bine1.json --
@@ -46,9 +46,36 @@ cmp stdout ../list-outdated
 			"version": "1.0.0",
 			"asset_pattern": "{name}_{version}_{goos}_{goarch}"
 		},
+		{
+			"name": "fuuv",
+			"url": "https://github.com/sevein/fuuv",
+			"version": "1.0.0",
+			"asset_pattern": "{name}_{version}_{goos}_{goarch}",
+			"tag_pattern": "{version}"
+		},
 	]
 }
--- .bine2.json --
+-- list --
+perpignan v1.0.0
+fuuv v1.0.0
+-- list-installed --
+perpignan v1.0.0
+fuuv v1.0.0
+-- list-installed-json --
+[
+	{
+		"name": "perpignan",
+		"version": "v1.0.0"
+	},
+	{
+		"name": "fuuv",
+		"version": "v1.0.0"
+	}
+]
+-- list-outdated --
+perpignan v1.0.0 » v1.0.3
+fuuv v1.0.0 » v1.0.1
+-- .bine-go.json --
 {
     "project": "test",
     "bins": [
@@ -59,16 +86,5 @@ cmp stdout ../list-outdated
         }
     ]
 }
--- list --
-perpignan v1.0.0
--- list-installed --
-perpignan v1.0.0
--- list-installed-json --
-[
-	{
-		"name": "perpignan",
-		"version": "v1.0.0"
-	}
-]
--- list-outdated --
+-- list-outdated-go --
 perpignan v1.0.0 » v1.0.3
