@@ -241,9 +241,38 @@ replacing dependency management in Make-based projects like [`makego`].
 Nix provides fully reproducible and isolated development environments, while
 bine focuses on simple version management for tools.
 
-### How does bine integrate with integration or build systems?
+### How does *bine* integrate with integration or build systems?
 
 We have [`examples`] showing hwo to use *bine* with [`make`] and [`just`].
+
+### How does *bine* integrate with Fish shell?
+
+For Fish shell users, you can create a simple function that not only sets up
+your `PATH` but also enhances your prompt to show the current `bine` project
+name.
+
+Create a file named `bine-env.fish` in your Fish functions directory (e.g.,
+`~/.config/fish/functions/bine-env.fish`) with the following content:
+
+```fish
+function bine-env
+    go tool bine env | source
+
+    if not functions -q original_fish_prompt
+        functions -c fish_prompt original_fish_prompt
+    end
+
+    # Requires 'jq' to parse `.bine.json`.
+    function fish_prompt
+        original_fish_prompt
+        set PROJECT_NAME (cat .bine.json | sed 's/^ *\/\/.*//' | jq -r '.project')
+        echo -n "→ [$PROJECT_NAME] "
+    end
+end
+```
+
+You can now call `bine-env` from your project's root directory.
+
 
 [releases page]: https://github.com/artefactual-labs/bine/releases
 [`examples`]: ./examples
