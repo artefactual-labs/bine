@@ -198,28 +198,6 @@ func (p *githubProvider) downloadURL(b *bin) (string, error) {
 	return fmt.Sprintf("%s/releases/download/%s/%s", b.URL, b.tag(), b.asset), nil
 }
 
-// extractVersionFromTag extracts a version from a tag name using the binary's
-// tag pattern.
-func (p *githubProvider) extractVersionFromTag(bin *bin, tagName string) (string, bool) {
-	// Escape special regex characters and create capture group for version.
-	regexPattern := regexp.QuoteMeta(bin.tagPattern())
-	regexPattern = strings.ReplaceAll(regexPattern, "\\{version\\}", "(.+)")
-	regexPattern = strings.ReplaceAll(regexPattern, "\\{name\\}", regexp.QuoteMeta(bin.Name))
-	regexPattern = "^" + regexPattern + "$"
-
-	tagRegex, err := regexp.Compile(regexPattern)
-	if err != nil {
-		return "", false
-	}
-
-	matches := tagRegex.FindStringSubmatch(tagName)
-	if len(matches) < 2 {
-		return "", false
-	}
-
-	return matches[1], true
-}
-
 type githubRelease struct {
 	TagName    string `json:"tag_name"`
 	Prerelease bool   `json:"prerelease"`
@@ -238,6 +216,32 @@ func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, e
 	}
 	owner, repo := parts[0], parts[1]
 
+	return ghLatestVersion(ctx, p.client, bin, p.token, owner, repo)
+}
+
+type arigaProvider struct {
+	client *http.Client
+	token  string
+}
+
+var _ binProvider = &arigaProvider{}
+
+func (p *arigaProvider) downloadURL(b *bin) (string, error) {
+	parsedURL, err := url.Parse(b.URL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL %q: %w", b.URL, err)
+	}
+
+	downloadURL := parsedURL.JoinPath(b.asset).String()
+
+	return downloadURL, nil
+}
+
+func (p *arigaProvider) latestVersion(ctx context.Context, bin *bin) (string, error) {
+	return ghLatestVersion(ctx, p.client, bin, p.token, "ariga", "atlas")
+}
+
+func ghLatestVersion(ctx context.Context, client *http.Client, bin *bin, token, owner, repo string) (string, error) {
 	// GitHub API endpoint for releases.
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases", owner, repo)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
@@ -246,11 +250,11 @@ func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, e
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/vnd.github+json")
-	if p.token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.token))
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	resp, err := p.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("send request: %v", err)
 	}
@@ -274,7 +278,7 @@ func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, e
 		}
 
 		// Extract version from tag using the configured tag pattern.
-		extractedVersion, matched := p.extractVersionFromTag(bin, release.TagName)
+		extractedVersion, matched := extractVersionFromTag(bin, release.TagName)
 		if !matched {
 			continue
 		}
@@ -298,71 +302,24 @@ func (p *githubProvider) latestVersion(ctx context.Context, bin *bin) (string, e
 	return strings.TrimPrefix(latestVersion, "v"), nil
 }
 
-type arigaProvider struct {
-	client *http.Client
-	token  string
-}
+// extractVersionFromTag extracts a version from a tag name using the binary's
+// tag pattern.
+func extractVersionFromTag(bin *bin, tagName string) (string, bool) {
+	// Escape special regex characters and create capture group for version.
+	regexPattern := regexp.QuoteMeta(bin.tagPattern())
+	regexPattern = strings.ReplaceAll(regexPattern, "\\{version\\}", "(.+)")
+	regexPattern = strings.ReplaceAll(regexPattern, "\\{name\\}", regexp.QuoteMeta(bin.Name))
+	regexPattern = "^" + regexPattern + "$"
 
-var _ binProvider = &arigaProvider{}
-
-func (p *arigaProvider) downloadURL(b *bin) (string, error) {
-	parsedURL, err := url.Parse(b.URL)
+	tagRegex, err := regexp.Compile(regexPattern)
 	if err != nil {
-		return "", fmt.Errorf("invalid URL %q: %w", b.URL, err)
+		return "", false
 	}
 
-	downloadURL := parsedURL.JoinPath(b.asset).String()
-
-	return downloadURL, nil
-}
-
-func (p *arigaProvider) latestVersion(ctx context.Context, bin *bin) (string, error) {
-	// TODO: this is basically a copy of the GitHub provider.
-	owner, repo := "ariga", "atlas"
-
-	// GitHub API endpoint for releases.
-	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases", owner, repo)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("create request: %v", err)
-	}
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	if p.token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.token))
+	matches := tagRegex.FindStringSubmatch(tagName)
+	if len(matches) < 2 {
+		return "", false
 	}
 
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("send request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
-	}
-
-	var releases []githubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
-		return "", fmt.Errorf("failed to decode GitHub API response: %v", err)
-	}
-
-	// Find the latest valid semver tag among the releases.
-	var latestSemver string
-	for _, release := range releases {
-		tag := release.TagName
-		canonicalTag := semver.Canonical(tag)
-		if canonicalTag == "" {
-			continue
-		}
-		if latestSemver == "" || semver.Compare(canonicalTag, latestSemver) > 0 {
-			latestSemver = canonicalTag
-		}
-	}
-
-	if latestSemver == "" {
-		return "", errors.New("no valid semver tags found in GitHub releases")
-	}
-
-	return strings.TrimPrefix(latestSemver, "v"), nil
+	return matches[1], true
 }

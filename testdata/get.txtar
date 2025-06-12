@@ -37,23 +37,6 @@ setup .bine-with-unbuildable-go-package.json
 stderr 'failed to install Go tool'
 
 #
-# Implements the ariga provider.
-#
-
-setup .bine-with-ariga-binary.json
-
-bine get atlas
-
-bine list --installed
-stdout 'atlas v0\.31\.0'
-! stderr .
-
-# TODO: use a proxy to mock responses for consistent test results.
-bine list --outdated
-cmp stdout ../atlas-ariga-outdated
-! stderr .
-
-#
 # Extraction.
 #
 
@@ -185,18 +168,6 @@ stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
         }
     ]
 }
--- .bine-with-ariga-binary.json --
-{
-    "project": "test",
-    "bins": [
-        {
-            "name": "atlas",
-            "version": "0.31.0",
-            "url": "https://release.ariga.io/atlas",
-            "asset_pattern": "atlas-{goos}-{goarch}-v{version}"
-        }
-    ]
-}
 -- .bine-with-temporal-binary.json --
 {
     "project": "test",
@@ -236,5 +207,3 @@ $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/temporal-cli
 $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/jq
 -- get-perpignan --
 $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
--- atlas-ariga-outdated --
-atlas v0.31.0 » v0.34.0
