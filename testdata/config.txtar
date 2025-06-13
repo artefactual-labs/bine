@@ -1,0 +1,29 @@
+setup .bine.json
+
+# Retrieves the project name.
+bine config get project
+cmp stdout ../project-name
+! stderr .
+
+# Rejects invalid command.
+! bine config
+! stdout .
+stderr 'config command requires a subcommand'
+
+# Rejects invalid key.
+! bine config get invalid
+! stdout .
+stderr 'unknown config key: invalid'
+
+# Rejects missing arguments.
+! bine config get
+! stdout .
+stderr 'config get requires one argument'
+
+-- .bine.json --
+{
+	"project": "test-project",
+	"bins": []
+}
+-- project-name --
+test-project

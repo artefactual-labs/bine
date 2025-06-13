@@ -28,6 +28,7 @@ type Bine struct {
 	client *http.Client
 	config *config
 
+	Project     string // Project name.
 	CacheDir    string // e.g. ~/.cache/bine/project/linux/amd64/
 	BinDir      string // e.g. ~/.cache/bine/project/linux/amd64/bin/
 	VersionsDir string // e.g. ~/.cache/bine/project/linux/amd64/versions/
@@ -114,8 +115,9 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 	}
 
 	b := &Bine{
-		client: stdClient,
-		config: config,
+		client:  stdClient,
+		config:  config,
+		Project: config.Project,
 	}
 
 	if optsConfig.logger != nil {
