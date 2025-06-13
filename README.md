@@ -265,7 +265,7 @@ function bine-env
     # Requires 'jq' to parse `.bine.json`.
     function fish_prompt
         original_fish_prompt
-        set PROJECT_NAME (cat .bine.json | sed 's/^ *\/\/.*//' | jq -r '.project')
+        set PROJECT_NAME (go tool bine config get project)
         echo -n "→ [$PROJECT_NAME] "
     end
 end
