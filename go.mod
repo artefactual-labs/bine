@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/renameio/v2 v2.0.0
-	github.com/hashicorp/go-retryablehttp v0.7.7
+	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mholt/archives v0.1.2
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/rogpeppe/go-internal v1.14.1
