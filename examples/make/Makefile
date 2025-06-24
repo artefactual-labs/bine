@@ -2,6 +2,7 @@
 # We invoke `bine` via `go tool bine`, i.e. defined as a tool in `go.mod`.
 
 # Include `bine path` in our system path.
+# Only compatible with GNU make!
 export PATH := $(shell go tool bine path):$(PATH)
 
 default: test
