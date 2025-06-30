@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/renameio/v2 v2.0.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
-	github.com/mholt/archives v0.1.2
+	github.com/mholt/archives v0.1.3
 	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
@@ -32,11 +32,11 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
+	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.0 // indirect
 	github.com/nwaples/rardecode/v2 v2.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/sorairolake/lzip-go v0.3.5 // indirect
-	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
