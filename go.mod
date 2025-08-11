@@ -10,11 +10,11 @@ require (
 	github.com/google/renameio/v2 v2.0.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mholt/archives v0.1.3
-	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
+	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
 	go.artefactual.dev/tools v0.21.0
-	golang.org/x/mod v0.26.0
+	golang.org/x/mod v0.27.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -41,9 +41,9 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 )
 
 tool github.com/artefactual-labs/bine
