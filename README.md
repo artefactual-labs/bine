@@ -231,10 +231,22 @@ environment:
 
 ### How does *bine* compare to asdf?
 
-asdf is much better overall, but we created *bine* mainly as a greenfield
+[asdf] is much better overall, but we created *bine* mainly as a greenfield
 project so we could try out some new ideas, including using LLMs during
 development. *bine* is less sophisticated and was born from the idea of
 replacing dependency management in Make-based projects like [`makego`].
+
+[asdf]: https://asdf-vm.com/
+
+### How does *bine* compare to mise?
+
+mise is also ahead of bine in terms of usability and features. In fact, it may
+even surpass asdf. If you haven't tried it yet, it's definitely worth a look.
+mise can leverage existing asdf plugins like [asdf-golang] to `go install`
+the Go tools your project needs.
+
+[mise]: https://mise.jdx.dev/
+[asdf-golang]: https://github.com/asdf-community/asdf-golang
 
 ### How does *bine* compare to Nix?
 
