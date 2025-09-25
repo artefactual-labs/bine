@@ -240,7 +240,7 @@ replacing dependency management in Make-based projects like [`makego`].
 
 ### How does *bine* compare to mise?
 
-mise is also ahead of bine in terms of usability and features. In fact, it may
+[mise] is also ahead of bine in terms of usability and features. In fact, it may
 even surpass asdf. If you haven't tried it yet, it's definitely worth a look.
 mise can leverage existing asdf plugins like [asdf-golang] to `go install`
 the Go tools your project needs.
