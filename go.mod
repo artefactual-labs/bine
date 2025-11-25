@@ -2,7 +2,7 @@ module github.com/artefactual-labs/bine
 
 go 1.25
 
-toolchain go1.25.3
+toolchain go1.25.4
 
 require (
 	github.com/go-logr/logr v1.4.3
