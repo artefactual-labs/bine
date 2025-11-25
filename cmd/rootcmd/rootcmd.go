@@ -1,10 +1,13 @@
 package rootcmd
 
 import (
+	"context"
+	"fmt"
 	"io"
 
 	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
+	"github.com/peterbourgon/ff/v4/ffhelp"
 
 	"github.com/artefactual-labs/bine/bine"
 )
@@ -36,10 +39,22 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 		ShortHelp: "Simple binary manager for developers.",
 		Usage:     "bine [FLAGS] <SUBCOMMAND> ...",
 		Flags:     cfg.Flags,
+		Exec:      cfg.Exec,
 		LongHelp: `bine helps manage external binary tools needed for development projects.
 
 It downloads specified binaries from their sources into a local cache directory,
 ensuring you have the right versions without cluttering your system.`,
 	}
 	return &cfg
+}
+
+func (cfg *RootConfig) Exec(_ context.Context, args []string) error {
+	if len(args) > 0 {
+		fmt.Fprintf(cfg.Stdout, "%s\n", ffhelp.Command(cfg.Command))
+		return fmt.Errorf("unknown subcommand %q", args[0])
+	}
+
+	fmt.Fprintf(cfg.Stdout, "%s\n", ffhelp.Command(cfg.Command))
+
+	return ff.ErrHelp
 }
