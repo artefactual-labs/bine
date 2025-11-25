@@ -84,7 +84,9 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 
 	logger.V(1).Info("Starting bine.")
 	cmd := root.Command.GetSelected().Name
-	if cmd != "version" {
+
+	// Skip building for help/version.
+	if cmd != "version" && cmd != root.Command.Name {
 		if b, err := build(ctx, logger, root); err != nil {
 			return err
 		} else {

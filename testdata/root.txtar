@@ -2,6 +2,11 @@
 exec bine --help
 ! stdout .
 
+# Prints help when no subcommand is provided.
+exec bine
+stdout 'USAGE'
+! stderr .
+
 # Confirm error handling when parsing flags in the root command.
 setup .bine.json
 ! exec bine --invalid
@@ -10,11 +15,10 @@ stderr 'bine helps manage external binary tools needed for development projects'
 
 # Confirm error handling when subcommand (exit function) doesn't exist.
 ! exec bine subcmd
-! stdout .
-cmp stderr ../noexec.txt
+cmp stderr ../unknown-subcmd.txt
 
--- noexec.txt --
-Command failed: bine: no exec function.
+-- unknown-subcmd.txt --
+Command failed: unknown subcommand "subcmd".
 -- .bine.json --
 {
     "project": "test",
