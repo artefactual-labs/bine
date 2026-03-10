@@ -31,6 +31,73 @@ stdout 'perpignan\n'
 exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
 stdout 'Hello world\!\n'
 
+#
+# Builds Go binary with a configured name different from the package basename.
+#
+
+setup .bine-with-renamed-go-package.json
+bine get perpignan-bin
+cmpenv stdout ../get-perpignan-bin
+! stderr .
+
+exec ls $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin
+stdout 'perpignan-bin\n'
+
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan-bin
+stdout 'Hello world\!\n'
+
+#
+# Builds Go binaries from versioned module paths and renames them.
+#
+
+setup .bine-with-versioned-go-packages.json
+bine get yq-bin
+cmpenv stdout ../get-yq-bin
+! stderr .
+
+exec ls $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin
+stdout 'yq-bin\n'
+
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/yq-bin --version
+stdout 'yq .* version v4\.40\.5'
+
+setup .bine-with-gh-go-package.json
+bine get gh-bin
+cmpenv stdout ../get-gh-bin
+! stderr .
+
+exec ls $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin
+stdout 'gh-bin\n'
+
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/gh-bin --version
+stdout 'gh version 2\.40\.1'
+
+#
+# Performs upgrade for a Go package binary.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+bine get perpignan
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+config .bine-with-go-package.v1.0.3.json
+bine get perpignan
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
+
+#
+# Reinstalls a Go package binary when the cache entry is tampered with.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+bine get perpignan
+exec bash -c 'printf "#!/bin/sh\\necho tampered\\n" > $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan && chmod +x $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan'
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'tampered\n'
+bine get perpignan
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'Hello world\!\n'
+
 setup .bine-with-unbuildable-go-package.json
 ! bine get perpignan
 ! stdout .
@@ -81,6 +148,19 @@ config .bine-with-perpignan.v1.0.3.json
 bine get perpignan
 exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
 stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
+
+#
+# Reinstalls when the cached binary no longer matches its checksum marker.
+#
+
+setup .bine-with-perpignan.v1.0.2.json
+bine get perpignan
+exec bash -c 'printf "#!/bin/sh\\necho tampered\\n" > $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan && chmod +x $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan'
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'tampered\n'
+bine get perpignan
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'Hello world\!\n'
 
 #
 # Performs downgrade.
@@ -154,6 +234,61 @@ stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
         }
     ]
 }
+-- .bine-with-go-package.v1.0.2.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "1.0.2"
+        }
+    ]
+}
+-- .bine-with-go-package.v1.0.3.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "1.0.3"
+        }
+    ]
+}
+-- .bine-with-renamed-go-package.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan-bin",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "1.0.2"
+        }
+    ]
+}
+-- .bine-with-versioned-go-packages.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "yq-bin",
+            "go_package": "github.com/mikefarah/yq/v4",
+            "version": "4.40.5"
+        }
+    ]
+}
+-- .bine-with-gh-go-package.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "gh-bin",
+            "go_package": "github.com/cli/cli/v2/cmd/gh",
+            "version": "2.40.1"
+        }
+    ]
+}
 -- .bine-with-unbuildable-go-package.json --
 {
     "project": "test",
@@ -207,3 +342,9 @@ $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/temporal-cli
 $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/jq
 -- get-perpignan --
 $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+-- get-perpignan-bin --
+$BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan-bin
+-- get-yq-bin --
+$BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/yq-bin
+-- get-gh-bin --
+$BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/gh-bin

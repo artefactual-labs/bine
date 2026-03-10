@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"strconv"
 
 	"github.com/mholt/archives"
 )
@@ -20,8 +22,6 @@ import (
 // Supporting functions for installing binaries.
 
 // goInstall installs a Go tool using 'go install'.
-//
-// TODO: honour binPath - name the binary following the user's preference.
 func goInstall(ctx context.Context, b *bin, binDir string) error {
 	goBin, err := exec.LookPath("go")
 	if err != nil {
@@ -40,12 +40,18 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 		return fmt.Errorf("failed to get absolute path for bin directory %s: %v", binDir, err)
 	}
 
+	tmpBinDir, err := os.MkdirTemp(binDir, ".bine-go-install-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary bin directory: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpBinDir) }()
+
 	cmd := execCommand(ctx, goBin, "install", packageName)
 
 	// Set GOBIN to install the binary there. fakeExecCommand sets cmd.Env so
 	// we can't assume it's empty.
 	cmd.Env = append(cmd.Env, os.Environ()...)
-	cmd.Env = append(cmd.Env, "GOBIN="+binDir)
+	cmd.Env = append(cmd.Env, "GOBIN="+tmpBinDir)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -56,6 +62,68 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 			msg = "(no stderr output)"
 		}
 		return fmt.Errorf("`go install %s` failed: %v\nstderr: %s", packageName, err, msg)
+	}
+
+	installedPath := filepath.Join(tmpBinDir, defaultGoBinaryName(b.GoPackage))
+	targetPath := filepath.Join(binDir, b.Name)
+	if err := replaceFile(installedPath, targetPath); err != nil {
+		return fmt.Errorf("move installed binary: %v", err)
+	}
+
+	if err := os.Chmod(targetPath, 0o755); err != nil {
+		return fmt.Errorf("chmod installed binary: %v", err)
+	}
+
+	return nil
+}
+
+func defaultGoBinaryName(pkg string) string {
+	name := path.Base(pkg)
+	for isGoMajorVersionPath(name) {
+		pkg = path.Dir(pkg)
+		name = path.Base(pkg)
+	}
+	if goos == "windows" {
+		return name + ".exe"
+	}
+	return name
+}
+
+func isGoMajorVersionPath(name string) bool {
+	if len(name) < 2 || name[0] != 'v' {
+		return false
+	}
+
+	n, err := strconv.Atoi(name[1:])
+	return err == nil && n >= 2
+}
+
+func replaceFile(src, dst string) error {
+	backupPath := dst + ".old"
+	_ = os.Remove(backupPath)
+	backupCreated := false
+
+	if info, err := os.Stat(dst); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("destination %q is a directory", dst)
+		}
+		if err := os.Rename(dst, backupPath); err != nil {
+			return err
+		}
+		backupCreated = true
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	if err := os.Rename(src, dst); err != nil {
+		if backupCreated {
+			_ = os.Rename(backupPath, dst)
+		}
+		return err
+	}
+
+	if backupCreated {
+		return os.Remove(backupPath)
 	}
 
 	return nil

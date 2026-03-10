@@ -260,7 +260,7 @@ type versionMarkerChecksum struct {
 }
 
 func (c versionMarkerChecksum) Matches(sum string) bool {
-	return c.Algorithm == crypto.SHA256.String() || c.Value == sum
+	return c.Algorithm == crypto.SHA256.String() && c.Value == sum
 }
 
 type versionMarkerDocument struct {
