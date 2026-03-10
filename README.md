@@ -130,10 +130,28 @@ its structure:
       //
       // The Go module path to install the binary from.
       // "go_package": "golang.org/x/tools/cmd/stringer",
+      //
+      // Optional: pin a specific version or track the latest available one.
+      // When omitted, or when set to "latest", bine installs with `go install @latest`
+      // and keeps track of the resolved version for `bine list --outdated` and
+      // `bine upgrade`.
+      // "version": "latest",
     }
   ]
 }
 ```
+
+When `go_package` is used, the `version` field supports two modes:
+
+- Pinned mode: set `version` to a specific release such as `"v0.30.0"` or
+  `"0.30.0"`.
+- Latest-tracking mode: omit `version`, or set it to `"latest"`, to always
+  install the newest available release.
+
+For latest-tracking Go binaries, *bine* records the actual installed version after
+`go install @latest`. This lets `bine list --outdated` report whether a newer
+release exists, and lets `bine upgrade` reinstall the binary without rewriting
+your configuration file.
 
 ### Asset pattern variables
 

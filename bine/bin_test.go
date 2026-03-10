@@ -180,6 +180,156 @@ func TestVersionMarkerChecksumMatches(t *testing.T) {
 	assert.Assert(t, !c.Matches("different"))
 }
 
+func TestVersionMarkerDocumentResolvedVersion(t *testing.T) {
+	t.Run("Serializes resolved version", func(t *testing.T) {
+		doc := versionMarkerDocument{
+			Checksum: versionMarkerChecksum{
+				Algorithm: crypto.SHA256.String(),
+				Value:     "abc123",
+			},
+			ResolvedVersion: "1.2.3",
+		}
+		data, err := json.Marshal(doc)
+		assert.NilError(t, err)
+		assert.Assert(t, strings.Contains(string(data), `"resolved_version":"1.2.3"`))
+	})
+
+	t.Run("Omits resolved_version when empty", func(t *testing.T) {
+		doc := versionMarkerDocument{
+			Checksum: versionMarkerChecksum{
+				Algorithm: crypto.SHA256.String(),
+				Value:     "abc123",
+			},
+		}
+		data, err := json.Marshal(doc)
+		assert.NilError(t, err)
+		assert.Assert(t, !strings.Contains(string(data), "resolved_version"))
+	})
+}
+
+func TestBinIsLatest(t *testing.T) {
+	tests := []struct {
+		name      string
+		version   string
+		goPackage string
+		want      bool
+	}{
+		{"empty version for go package", "", "github.com/foo/bar", true},
+		{"latest for go package", "latest", "github.com/foo/bar", true},
+		{"LATEST for go package (case-insensitive)", "LATEST", "github.com/foo/bar", true},
+		{"pinned version for go package", "v1.2.3", "github.com/foo/bar", false},
+		{"empty version without go package", "", "", false},
+		{"latest without go package", "latest", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := bin{Version: tt.version, GoPackage: tt.goPackage}
+			assert.Equal(t, b.isLatest(), tt.want)
+		})
+	}
+}
+
+func TestBinMarkerVersion(t *testing.T) {
+	tests := []struct {
+		name      string
+		version   string
+		goPackage string
+		want      string
+	}{
+		{"pinned semver", "v1.2.3", "", "v1.2.3"},
+		{"unprefixed semver", "1.2.3", "", "1.2.3"},
+		{"empty version for go package", "", "github.com/foo/bar", "latest"},
+		{"latest for go package", "latest", "github.com/foo/bar", "latest"},
+		{"LATEST for go package (case-insensitive)", "LATEST", "github.com/foo/bar", "latest"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := bin{Version: tt.version, GoPackage: tt.goPackage}
+			assert.Equal(t, b.markerVersion(), tt.want)
+		})
+	}
+}
+
+func TestCheckOutdated(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/repos/foo/bar/releases") {
+			releases := []githubRelease{
+				{TagName: "v2.0.0"},
+				{TagName: "v1.0.0"},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(releases)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client := &http.Client{
+		Transport: &mockTransport{mockServer: server},
+	}
+
+	makeBin := func(version string) *bin {
+		b := &bin{
+			Name:    "bar",
+			Version: version,
+			URL:     "https://github.com/foo/bar",
+		}
+		b.provider = &githubProvider{client: client}
+		return b
+	}
+
+	ctx := context.Background()
+
+	t.Run("pinned outdated version", func(t *testing.T) {
+		b := makeBin("1.0.0")
+		outdated, latest, err := b.checkOutdated(ctx, "")
+		assert.NilError(t, err)
+		assert.Assert(t, outdated)
+		assert.Equal(t, latest, "2.0.0")
+	})
+
+	t.Run("pinned up-to-date version", func(t *testing.T) {
+		b := makeBin("2.0.0")
+		outdated, _, err := b.checkOutdated(ctx, "")
+		assert.NilError(t, err)
+		assert.Assert(t, !outdated)
+	})
+
+	t.Run("latest bin with outdated resolved version", func(t *testing.T) {
+		b := makeBin("latest")
+		b.GoPackage = "github.com/foo/bar"
+		outdated, latest, err := b.checkOutdated(ctx, "1.0.0")
+		assert.NilError(t, err)
+		assert.Assert(t, outdated)
+		assert.Equal(t, latest, "2.0.0")
+	})
+
+	t.Run("latest bin with up-to-date resolved version", func(t *testing.T) {
+		b := makeBin("latest")
+		b.GoPackage = "github.com/foo/bar"
+		outdated, _, err := b.checkOutdated(ctx, "2.0.0")
+		assert.NilError(t, err)
+		assert.Assert(t, !outdated)
+	})
+
+	t.Run("latest bin without resolved version returns error", func(t *testing.T) {
+		b := makeBin("latest")
+		b.GoPackage = "github.com/foo/bar"
+		_, _, err := b.checkOutdated(ctx, "")
+		assert.ErrorContains(t, err, "has no resolved version to compare")
+	})
+
+	t.Run("empty version without resolved version returns error", func(t *testing.T) {
+		b := makeBin("")
+		b.GoPackage = "github.com/foo/bar"
+		_, _, err := b.checkOutdated(ctx, "")
+		assert.ErrorContains(t, err, "has no resolved version to compare")
+	})
+}
+
 // mockTransport redirects GitHub API calls to our test server
 type mockTransport struct {
 	mockServer *httptest.Server

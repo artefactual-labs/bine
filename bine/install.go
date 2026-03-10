@@ -15,8 +15,10 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/mholt/archives"
+	"golang.org/x/mod/semver"
 )
 
 // Supporting functions for installing binaries.
@@ -75,6 +77,46 @@ func goInstall(ctx context.Context, b *bin, binDir string) error {
 	}
 
 	return nil
+}
+
+// goInstalledVersion returns the version of the Go module embedded in a binary
+// by running "go version -m". This is used to determine the resolved version
+// after installing a Go tool with @latest.
+func goInstalledVersion(ctx context.Context, binaryPath string) (string, error) {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		return "", fmt.Errorf("cannot find 'go' command: %v", err)
+	}
+
+	cmd := execCommand(ctx, goBin, "version", "-m", binaryPath)
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("go version -m: %v", err)
+	}
+
+	// Parse "go version -m" output to find the "mod" line.
+	// Example output:
+	//   /path/to/binary: go1.21.0
+	//           path    github.com/foo/bar/cmd/tool
+	//           mod     github.com/foo/bar      v1.2.3  h1:...
+	for line := range strings.SplitSeq(stdout.String(), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[0] == "mod" {
+			rawVersion := strings.TrimPrefix(fields[2], "v")
+			// Validate that the extracted version is a proper semver.
+			// Versions like "(devel)" or pseudo-versions are not useful for
+			// upgrade comparisons.
+			if semver.Canonical("v"+rawVersion) == "" {
+				return "", fmt.Errorf("non-semver version %q reported by 'go version -m'", fields[2])
+			}
+			return rawVersion, nil
+		}
+	}
+
+	return "", errors.New("could not determine installed version from 'go version -m' output")
 }
 
 func defaultGoBinaryName(pkg string) string {
