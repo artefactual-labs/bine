@@ -2,6 +2,7 @@ package bine
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -135,4 +136,92 @@ func TestUpgradeFailsSafelyWhenLatestMarkerCannotBeRemoved(t *testing.T) {
 
 	_, statErr := os.Stat(binPath)
 	assert.NilError(t, statErr)
+}
+
+func TestListOneScopesOutdatedChecksToTargetBin(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), ".bine.json")
+	assert.NilError(t, os.WriteFile(configPath, []byte("{}"), 0o640))
+
+	b := &Bine{
+		config: &config{
+			path: configPath,
+			Bins: []*bin{
+				{
+					Name:      "broken",
+					GoPackage: "github.com/foo/bar/cmd/broken",
+					Version:   "1.0.0",
+					provider:  staticProvider{err: errors.New("boom")},
+				},
+				{
+					Name:      "tool",
+					GoPackage: "github.com/foo/bar/cmd/tool",
+					Version:   "1.0.0",
+					provider:  staticProvider{latest: "2.0.0"},
+				},
+			},
+		},
+	}
+
+	items, err := b.ListOne(t.Context(), "tool", false, true)
+	assert.NilError(t, err)
+	assert.Equal(t, len(items), 1)
+	assert.Equal(t, items[0].Name, "tool")
+	assert.Equal(t, items[0].Latest, "v2.0.0")
+}
+
+func TestUpgradeOneOnlyUpdatesRequestedBin(t *testing.T) {
+	injectFakeExec(t, "TestHelperProcessWithSuccess")
+
+	cacheDir := t.TempDir()
+	configPath := filepath.Join(cacheDir, ".bine.json")
+	assert.NilError(t, os.WriteFile(configPath, []byte(`{
+  "project": "test",
+  "bins": [
+    {"name": "tool", "go_package": "github.com/foo/bar/cmd/tool", "version": "1.0.0"},
+    {"name": "other", "go_package": "github.com/foo/bar/cmd/other", "version": "1.0.0"}
+  ]
+}`), 0o640))
+
+	b := &Bine{
+		BinDir:      filepath.Join(cacheDir, "bin"),
+		VersionsDir: filepath.Join(cacheDir, "versions"),
+		config: &config{
+			path: configPath,
+			Bins: []*bin{
+				{
+					Name:      "tool",
+					GoPackage: "github.com/foo/bar/cmd/tool",
+					Version:   "1.0.0",
+					provider:  staticProvider{latest: "2.0.0"},
+				},
+				{
+					Name:      "other",
+					GoPackage: "github.com/foo/bar/cmd/other",
+					Version:   "1.0.0",
+					provider:  staticProvider{latest: "3.0.0"},
+				},
+			},
+		},
+	}
+
+	updates, err := b.UpgradeOne(t.Context(), "tool")
+	assert.NilError(t, err)
+	assert.Equal(t, len(updates), 1)
+	assert.Equal(t, updates[0].Name, "tool")
+	assert.Equal(t, updates[0].Latest, "v2.0.0")
+
+	configBlob, err := os.ReadFile(configPath)
+	assert.NilError(t, err)
+	assert.Equal(t, string(configBlob), `{
+  "project": "test",
+  "bins": [
+    {"name": "tool", "go_package": "github.com/foo/bar/cmd/tool", "version": "2.0.0"},
+    {"name": "other", "go_package": "github.com/foo/bar/cmd/other", "version": "1.0.0"}
+  ]
+}`)
+
+	_, err = os.Stat(filepath.Join(b.BinDir, "tool"))
+	assert.NilError(t, err)
+	_, err = os.Stat(filepath.Join(b.BinDir, "other"))
+	assert.Assert(t, os.IsNotExist(err))
 }

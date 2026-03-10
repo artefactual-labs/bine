@@ -206,7 +206,7 @@ SUBCOMMANDS
   path      Print the path of the binary store.
   run       Download a binary and run it.
   sync      Install all binaries defined in the configuration file.
-  upgrade   Upgrade all binaries defined in the configuration file.
+  upgrade   Upgrade binaries defined in the configuration file.
   version   Print the current version of bine.
 
 FLAGS
