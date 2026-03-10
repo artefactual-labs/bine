@@ -185,7 +185,7 @@ func (b *Bine) install(ctx context.Context, bin *bin) (_ string, err error) {
 	binPath := filepath.Join(b.BinDir, bin.Name)
 
 	// If version marker exists, assume binary is already installed.
-	if ok, err := b.installed(bin); ok {
+	if ok, err := b.installed(ctx, bin); ok {
 		return binPath, nil
 	} else if err != nil {
 		return "", fmt.Errorf("failed to check if binary is installed: %v", err)
@@ -196,9 +196,19 @@ func (b *Bine) install(ctx context.Context, bin *bin) (_ string, err error) {
 		return "", fmt.Errorf("failed to create bin directory: %v", err)
 	}
 
+	var resolvedVersion string
 	if bin.goPkg() {
 		if err := goInstall(ctx, bin, b.BinDir); err != nil {
 			return "", fmt.Errorf("failed to install Go tool: %v", err)
+		}
+		// For "latest" bins, resolve the actual installed version so we can
+		// detect upgrades in the future.
+		if bin.isLatest() {
+			if v, err := goInstalledVersion(ctx, binPath); err != nil {
+				b.logger.V(1).Info("Could not determine installed version for 'latest' tracking.", "bin", bin.Name, "err", err)
+			} else {
+				resolvedVersion = v
+			}
 		}
 	} else {
 		if err := binInstall(ctx, b.client, bin, binPath); err != nil {
@@ -206,7 +216,7 @@ func (b *Bine) install(ctx context.Context, bin *bin) (_ string, err error) {
 		}
 	}
 
-	if err := b.markVersion(bin); err != nil {
+	if err := b.markVersion(bin, resolvedVersion); err != nil {
 		return "", err
 	}
 
@@ -214,7 +224,20 @@ func (b *Bine) install(ctx context.Context, bin *bin) (_ string, err error) {
 }
 
 // installed determines if a binary is already installed.
-func (b *Bine) installed(bin *bin) (bool, error) {
+func (b *Bine) installed(ctx context.Context, bin *bin) (bool, error) {
+	if bin.isLatest() {
+		_, ok, err := b.latestResolvedVersion(ctx, bin)
+		if err != nil {
+			var resolveErr latestVersionResolutionError
+			if errors.As(err, &resolveErr) {
+				b.logger.V(1).Info("Could not validate latest-tracking installation; will reinstall.", "bin", bin.Name, "err", err)
+				return false, nil
+			}
+			return false, err
+		}
+		return ok, nil
+	}
+
 	binPath := filepath.Join(b.BinDir, bin.Name)
 	if info, err := os.Stat(binPath); os.IsNotExist(err) {
 		return false, nil
@@ -224,7 +247,7 @@ func (b *Bine) installed(bin *bin) (bool, error) {
 		return false, fmt.Errorf("expected %q to be a file, but it's a directory", binPath)
 	}
 
-	versionMarker := filepath.Join(b.VersionsDir, bin.Name, bin.Version)
+	versionMarker := filepath.Join(b.VersionsDir, bin.Name, bin.markerVersion())
 	blob, err := os.ReadFile(versionMarker)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -265,12 +288,85 @@ func (c versionMarkerChecksum) Matches(sum string) bool {
 
 type versionMarkerDocument struct {
 	Checksum versionMarkerChecksum `json:"checksum"`
+	// ResolvedVersion is the actual version installed for "latest" bins.
+	// It is empty for bins with a pinned version.
+	ResolvedVersion string `json:"resolved_version,omitempty"`
+}
+
+type latestVersionResolutionError struct {
+	err error
+}
+
+func (e latestVersionResolutionError) Error() string {
+	return e.err.Error()
+}
+
+func (e latestVersionResolutionError) Unwrap() error {
+	return e.err
+}
+
+// readVersionMarker reads the version marker file for the given binary.
+func (b *Bine) readVersionMarker(bin *bin) (*versionMarkerDocument, error) {
+	versionMarker := filepath.Join(b.VersionsDir, bin.Name, bin.markerVersion())
+	blob, err := os.ReadFile(versionMarker)
+	if err != nil {
+		return nil, err
+	}
+	if len(blob) == 0 {
+		return &versionMarkerDocument{}, nil
+	}
+	var marker versionMarkerDocument
+	if err := json.Unmarshal(blob, &marker); err != nil {
+		return nil, err
+	}
+	return &marker, nil
+}
+
+// latestResolvedVersion returns the installed version for a latest-tracking Go
+// binary. It prefers the cached marker, but can recover the value from the
+// binary itself and repair the marker if needed.
+func (b *Bine) latestResolvedVersion(ctx context.Context, bin *bin) (string, bool, error) {
+	binPath := filepath.Join(b.BinDir, bin.Name)
+	info, err := os.Stat(binPath)
+	if os.IsNotExist(err) {
+		return "", false, nil
+	} else if err != nil {
+		return "", false, err
+	} else if info.IsDir() {
+		return "", false, fmt.Errorf("expected %q to be a file, but it's a directory", binPath)
+	}
+
+	sum, err := checksum(binPath)
+	if err != nil {
+		return "", true, fmt.Errorf("checksum: %v", err)
+	}
+
+	if marker, err := b.readVersionMarker(bin); err == nil {
+		if marker.Checksum.Matches(sum) && marker.ResolvedVersion != "" {
+			return marker.ResolvedVersion, true, nil
+		}
+	} else if !os.IsNotExist(err) {
+		b.logger.V(1).Info("Could not read latest-tracking version marker; will recover from binary.", "bin", bin.Name, "err", err)
+	}
+
+	resolvedVersion, err := goInstalledVersion(ctx, binPath)
+	if err != nil {
+		return "", true, latestVersionResolutionError{err: fmt.Errorf("resolve installed version: %v", err)}
+	}
+
+	if err := b.markVersion(bin, resolvedVersion); err != nil {
+		b.logger.V(1).Info("Could not repair latest-tracking version marker.", "bin", bin.Name, "err", err)
+	}
+
+	return resolvedVersion, true, nil
 }
 
 // markVersion creates a version marker file for the binary.
-func (b *Bine) markVersion(bin *bin) error {
+// resolvedVersion is the actual semver installed; it is only set for "latest"
+// bins and is used to detect upgrades.
+func (b *Bine) markVersion(bin *bin, resolvedVersion string) error {
 	versionsDir := filepath.Join(b.VersionsDir, bin.Name)
-	versionMarker := filepath.Join(versionsDir, bin.Version)
+	versionMarker := filepath.Join(versionsDir, bin.markerVersion())
 
 	// Ensure the versions directory exists.
 	if err := os.MkdirAll(versionsDir, 0o750); err != nil {
@@ -288,6 +384,7 @@ func (b *Bine) markVersion(bin *bin) error {
 			Algorithm: crypto.SHA256.String(),
 			Value:     sum,
 		},
+		ResolvedVersion: resolvedVersion,
 	}
 	data, err := json.MarshalIndent(doc, "", "\t")
 	if err != nil {
@@ -295,6 +392,30 @@ func (b *Bine) markVersion(bin *bin) error {
 	}
 
 	return renameio.WriteFile(versionMarker, data, 0o640, renameio.WithStaticPermissions(0o640))
+}
+
+// removeInstallation removes the cached binary and its version marker.
+func (b *Bine) removeInstallation(bin *bin) error {
+	versionMarker := filepath.Join(b.VersionsDir, bin.Name, bin.markerVersion())
+	if err := os.Remove(versionMarker); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove version marker: %v", err)
+	}
+
+	binPath := filepath.Join(b.BinDir, bin.Name)
+	if err := os.Remove(binPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove binary: %v", err)
+	}
+
+	return nil
+}
+
+func (b *Bine) reinstall(ctx context.Context, bin *bin) error {
+	if err := b.removeInstallation(bin); err != nil {
+		return err
+	}
+
+	_, err := b.install(ctx, bin)
+	return err
 }
 
 // Get retrieves the path to a binary given its name.
@@ -366,6 +487,19 @@ func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
 		if err := b.config.update(updates); err != nil {
 			return nil, err
 		}
+
+		// For "latest" bins, config.update() does not modify the version in the
+		// config file. Reinstall them explicitly so Sync() does not depend on
+		// marker deletion as an implicit signal.
+		for _, item := range updates {
+			for _, bin := range b.config.Bins {
+				if bin.Name == item.Name && bin.isLatest() {
+					if err := b.reinstall(ctx, bin); err != nil {
+						return updates, fmt.Errorf("reinstall latest-tracking bin %q: %v", bin.Name, err)
+					}
+				}
+			}
+		}
 	}
 
 	if err := b.Sync(ctx); err != nil {
@@ -389,7 +523,7 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 
 	for _, bin := range b.config.Bins {
 		if installedOnly {
-			ok, err := b.installed(bin)
+			ok, err := b.installed(ctx, bin)
 			if err != nil {
 				return nil, fmt.Errorf("list: %v", err)
 			} else if !ok {
@@ -397,15 +531,36 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 			}
 		}
 
+		// For "latest" bins, read the resolved version from the marker so we
+		// can display the actual installed version and compare it with the
+		// upstream latest.
+		resolvedVersion := ""
+		latestInstalled := false
+		var latestResolvedError error
+		if bin.isLatest() {
+			resolvedVersion, latestInstalled, latestResolvedError = b.latestResolvedVersion(ctx, bin)
+		}
+
 		var latestVersion string
 		var outdatedCheckError string
 		if outdatedOnly {
+			if bin.isLatest() {
+				if !latestInstalled {
+					continue
+				}
+				if latestResolvedError != nil {
+					outdatedCheckError = latestResolvedError.Error()
+				}
+			}
+
 			var outdated bool
 			var err error
-			outdated, latestVersion, err = bin.checkOutdated(ctx)
+			if outdatedCheckError == "" {
+				outdated, latestVersion, err = bin.checkOutdated(ctx, resolvedVersion)
+			}
 			if err != nil {
 				outdatedCheckError = err.Error()
-			} else if !outdated {
+			} else if outdatedCheckError == "" && !outdated {
 				continue
 			}
 		}
@@ -415,9 +570,15 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 			latestVersion = "v" + latestVersion
 		}
 
+		// Display version: for "latest" bins show the resolved version if known.
+		version := bin.usableVersion()
+		if bin.isLatest() && resolvedVersion != "" {
+			version = "v" + resolvedVersion
+		}
+
 		items = append(items, &ListItem{
 			Name:               bin.Name,
-			Version:            bin.usableVersion(),
+			Version:            version,
 			Latest:             latestVersion,
 			OutdatedCheckError: outdatedCheckError,
 		})

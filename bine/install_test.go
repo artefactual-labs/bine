@@ -1,6 +1,7 @@
 package bine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,6 +44,30 @@ func TestHelperProcessWithSuccess(t *testing.T) {
 func TestHelperProcessWithError(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
+	}
+
+	os.Exit(1)
+}
+
+// TestHelperProcessGoVersionM handles the "go version -m <binary>" command in tests.
+func TestHelperProcessGoVersionM(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	args := os.Args
+	for i, a := range args {
+		if a == "version" && i+1 < len(args) && args[i+1] == "-m" {
+			binaryPath := args[i+2]
+			// Simulate "go version -m" output format:
+			//   <path>: go1.21.0
+			//           path    github.com/foo/bar/cmd/tool
+			//           mod     github.com/foo/bar      v1.2.3  h1:abc
+			fmt.Printf("%s: go1.21.0\n", binaryPath)
+			fmt.Printf("\tpath\tgithub.com/foo/bar/cmd/tool\n")
+			fmt.Printf("\tmod\tgithub.com/foo/bar\tv1.2.3\th1:abc\n")
+			os.Exit(0)
+		}
 	}
 
 	os.Exit(1)
@@ -184,4 +209,28 @@ func TestDefaultGoBinaryName(t *testing.T) {
 			assert.Equal(t, defaultGoBinaryName(tt.pkg), tt.want)
 		})
 	}
+}
+
+func TestGoInstalledVersion(t *testing.T) {
+	t.Run("Returns version from go version -m output", func(t *testing.T) {
+		injectFakeExec(t, "TestHelperProcessGoVersionM")
+
+		version, err := goInstalledVersion(t.Context(), "/fake/binary")
+		assert.NilError(t, err)
+		assert.Equal(t, version, "1.2.3")
+	})
+
+	t.Run("Returns error when go binary not found", func(t *testing.T) {
+		t.Setenv("PATH", t.TempDir())
+
+		_, err := goInstalledVersion(t.Context(), "/fake/binary")
+		assert.ErrorContains(t, err, "cannot find 'go' command")
+	})
+
+	t.Run("Returns error when command fails", func(t *testing.T) {
+		injectFakeExec(t, "TestHelperProcessWithError")
+
+		_, err := goInstalledVersion(t.Context(), "/fake/binary")
+		assert.ErrorContains(t, err, "go version -m")
+	})
 }

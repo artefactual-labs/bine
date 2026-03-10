@@ -96,6 +96,10 @@ func (c *config) update(updates []*ListItem) error {
 	for _, item := range updates {
 		for _, b := range c.Bins {
 			if b.Name == item.Name {
+				// "latest" bins are reinstalled without changing the config.
+				if b.isLatest() {
+					break
+				}
 				if item.Latest != "" && b.Version != item.Latest {
 					b.Version = item.Latest
 					changes[b.Name] = strings.TrimPrefix(item.Latest, "v")

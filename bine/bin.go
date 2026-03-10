@@ -42,6 +42,25 @@ func (b bin) goPkg() bool {
 	return b.GoPackage != ""
 }
 
+// isLatest returns true if this binary tracks the latest available version.
+// Only applicable to Go packages.
+func (b bin) isLatest() bool {
+	if !b.goPkg() {
+		return false
+	}
+	return b.Version == "" || strings.EqualFold(b.Version, "latest")
+}
+
+// markerVersion returns the version string used for the version marker file.
+// For "latest" bins, always returns "latest" regardless of whether the version
+// field is empty or explicitly set to "latest".
+func (b bin) markerVersion() string {
+	if b.isLatest() {
+		return "latest"
+	}
+	return b.Version
+}
+
 // canonicalVersion returns the canonical formatting of the semver version.
 // Useful in contexts when semver-compliant versions MUST be present.
 func (b bin) canonicalVersion() string {
@@ -103,10 +122,20 @@ func (b *bin) loadProvider(client *http.Client, ghAPIToken string) error {
 }
 
 // checkOutdated checks if the binary is outdated by comparing its version with
-// the latest version available.
-func (b *bin) checkOutdated(ctx context.Context) (bool, string, error) {
-	if b.Version == "" {
-		return false, "", fmt.Errorf("binary %q has no version specified", b.Name)
+// the latest version available. For "latest" bins, resolvedVersion must be
+// provided (the actual version currently installed, obtained from the version
+// marker) since "latest" itself is not a comparable semver.
+func (b *bin) checkOutdated(ctx context.Context, resolvedVersion string) (bool, string, error) {
+	// Determine the version to compare against the latest.
+	currentVersion := resolvedVersion
+	if currentVersion == "" {
+		currentVersion = b.Version
+	}
+	if currentVersion == "" || strings.EqualFold(currentVersion, "latest") {
+		// This happens for "latest" Go bins when no resolved version has been
+		// stored yet (e.g., the binary was installed by an older bine version),
+		// or when a non-Go bin has an empty version field.
+		return false, "", fmt.Errorf("binary %q has no resolved version to compare", b.Name)
 	}
 
 	latestVersion, err := b.provider.latestVersion(ctx, b)
@@ -115,7 +144,7 @@ func (b *bin) checkOutdated(ctx context.Context) (bool, string, error) {
 	}
 
 	// Compare versions using semver.
-	current := b.canonicalVersion()
+	current := semver.Canonical("v" + strings.TrimPrefix(currentVersion, "v"))
 	latest := semver.Canonical("v" + strings.TrimPrefix(latestVersion, "v"))
 	if latest == "" {
 		return false, "", fmt.Errorf("invalid semver for latest version %q of %s", latest, b.Name)
