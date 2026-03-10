@@ -2,6 +2,7 @@ package bine
 
 import (
 	"context"
+	"crypto"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -167,6 +168,16 @@ func TestArigaProvider(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, latestVersion, "0.34.0")
 	})
+}
+
+func TestVersionMarkerChecksumMatches(t *testing.T) {
+	c := versionMarkerChecksum{
+		Algorithm: crypto.SHA256.String(),
+		Value:     "expected",
+	}
+
+	assert.Assert(t, c.Matches("expected"))
+	assert.Assert(t, !c.Matches("different"))
 }
 
 // mockTransport redirects GitHub API calls to our test server
