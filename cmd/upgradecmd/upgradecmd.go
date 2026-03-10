@@ -25,8 +25,8 @@ func New(parent *rootcmd.RootConfig) *Config {
 	cfg.Flags.BoolVar(&cfg.DryRun, 0, "dry-run", "Show what would be done without actually doing it.")
 	cfg.Command = &ff.Command{
 		Name:      "upgrade",
-		Usage:     "bine upgrade",
-		ShortHelp: "Upgrade all binaries defined in the configuration file.",
+		Usage:     "bine upgrade [NAME]",
+		ShortHelp: "Upgrade binaries defined in the configuration file.",
 		Flags:     cfg.Flags,
 		Exec:      cfg.Exec,
 	}
@@ -35,12 +35,30 @@ func New(parent *rootcmd.RootConfig) *Config {
 }
 
 func (cfg *Config) Exec(ctx context.Context, args []string) error {
+	if len(args) > 1 {
+		return errors.New("upgrade accepts at most one argument")
+	}
+
 	var upgradeFn func(ctx context.Context) ([]*bine.ListItem, error)
-	if cfg.DryRun {
+	name := ""
+	if len(args) == 1 {
+		name = args[0]
+	}
+
+	switch {
+	case cfg.DryRun && name != "":
+		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
+			return dryRunOne(ctx, cfg.Bine, name)
+		}
+	case cfg.DryRun:
 		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
 			return cfg.Bine.List(ctx, false, true)
 		}
-	} else {
+	case name != "":
+		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
+			return cfg.Bine.UpgradeOne(ctx, name)
+		}
+	default:
 		upgradeFn = func(ctx context.Context) ([]*bine.ListItem, error) {
 			return cfg.Bine.Upgrade(ctx)
 		}
@@ -75,4 +93,8 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 	}
 
 	return nil
+}
+
+func dryRunOne(ctx context.Context, b *bine.Bine, name string) ([]*bine.ListItem, error) {
+	return b.ListOne(ctx, name, false, true)
 }

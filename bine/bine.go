@@ -453,9 +453,8 @@ func (b *Bine) Run(ctx context.Context, name string, args []string, streams IOSt
 	return nil
 }
 
-// Sync installs all binaries defined in the configuration.
-func (b *Bine) Sync(ctx context.Context) error {
-	for _, item := range b.config.Bins {
+func (b *Bine) syncBins(ctx context.Context, bins []*bin) error {
+	for _, item := range bins {
 		bin, err := b.load(item.Name)
 		if err != nil {
 			return fmt.Errorf("sync: %v", err)
@@ -470,8 +469,37 @@ func (b *Bine) Sync(ctx context.Context) error {
 	return nil
 }
 
+// Sync installs all binaries defined in the configuration.
+func (b *Bine) Sync(ctx context.Context) error {
+	return b.syncBins(ctx, b.config.Bins)
+}
+
 func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
-	updates, err := b.List(ctx, false, true)
+	return b.upgradeBins(ctx, b.config.Bins)
+}
+
+// UpgradeOne upgrades a single binary defined in the configuration.
+func (b *Bine) UpgradeOne(ctx context.Context, name string) ([]*ListItem, error) {
+	selected, err := b.load(name)
+	if err != nil {
+		return nil, fmt.Errorf("upgrade: %v", err)
+	}
+
+	return b.upgradeBins(ctx, []*bin{selected})
+}
+
+// ListOne returns list information for a single binary defined in the configuration.
+func (b *Bine) ListOne(ctx context.Context, name string, installedOnly, outdatedOnly bool) ([]*ListItem, error) {
+	selected, err := b.load(name)
+	if err != nil {
+		return nil, fmt.Errorf("list: %v", err)
+	}
+
+	return b.listBins(ctx, []*bin{selected}, installedOnly, outdatedOnly)
+}
+
+func (b *Bine) upgradeBins(ctx context.Context, bins []*bin) ([]*ListItem, error) {
+	updates, err := b.listBins(ctx, bins, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +530,7 @@ func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
 		}
 	}
 
-	if err := b.Sync(ctx); err != nil {
+	if err := b.syncBins(ctx, bins); err != nil {
 		return updates, err
 	}
 
@@ -519,9 +547,13 @@ type ListItem struct {
 }
 
 func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*ListItem, error) {
+	return b.listBins(ctx, b.config.Bins, installedOnly, outdatedOnly)
+}
+
+func (b *Bine) listBins(ctx context.Context, bins []*bin, installedOnly, outdatedOnly bool) ([]*ListItem, error) {
 	var items []*ListItem
 
-	for _, bin := range b.config.Bins {
+	for _, bin := range bins {
 		if installedOnly {
 			ok, err := b.installed(ctx, bin)
 			if err != nil {
