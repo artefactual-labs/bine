@@ -3,6 +3,7 @@ linters:
   default: standard
   enable:
     - contextcheck
+    - modernize
   disable:
     - errcheck
 formatters:

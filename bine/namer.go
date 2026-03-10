@@ -92,9 +92,9 @@ func triple(ctx context.Context) string {
 	// First try to get triple from rustc.
 	out, err := execCommand(ctx, "rustc", "-vV").Output()
 	if err == nil {
-		for _, line := range strings.Split(string(out), "\n") {
-			if strings.HasPrefix(line, "host: ") {
-				triple := strings.TrimSpace(strings.TrimPrefix(line, "host: "))
+		for line := range strings.SplitSeq(string(out), "\n") {
+			if after, ok := strings.CutPrefix(line, "host: "); ok {
+				triple := strings.TrimSpace(after)
 				if triple != "" {
 					return triple
 				}
