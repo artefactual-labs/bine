@@ -98,19 +98,18 @@ its structure:
 ```jsonc
 {
   // A unique name for your project. Used to create a scoped cache directory.
-  "project": "string",
+  "project": "example-project",
 
   // A list of binaries to manage.
   "bins": [
     {
+      //
+      // Example 1: Install from a release asset URL.
+      //
       // The name you use to run the binary, e.g. `bine run jq`.
       "name": "jq",
       // The semantic version to install, e.g. "1.8.0".
       "version": "1.8.0",
-
-      //
-      // Option 1: Install from a release asset URL.
-      //
       // The URL of the GitHub repository.
       "url": "https://github.com/jqlang/jq",
       // A template for the downloadable asset's filename, e.g. "jq-darwin-amd64".
@@ -124,22 +123,24 @@ its structure:
           "darwin": "macos"
         }
       }
-
+    },
+    {
       //
-      // Option 2: Install from a Go package.
+      // Example 2: Install from a Go package.
       //
+      "name": "govulncheck",
       // The Go module path to install the binary from.
-      // "go_package": "golang.org/x/tools/cmd/stringer",
-      //
-      // Optional: pin a specific version or track the latest available one.
-      // When omitted, or when set to "latest", bine installs with `go install @latest`
-      // and keeps track of the resolved version for `bine list --outdated` and
-      // `bine upgrade`.
-      // "version": "latest",
+      "go_package": "golang.org/x/vuln/cmd/govulncheck",
+      // Optional: pin a version or use "latest".
+      "version": "latest"
     }
   ]
 }
 ```
+
+Each object in `bins` should use one installation strategy: either release
+asset fields such as `url` and `asset_pattern`, or Go package fields such as
+`go_package`.
 
 When `go_package` is used, the `version` field supports two modes:
 
@@ -148,10 +149,42 @@ When `go_package` is used, the `version` field supports two modes:
 - Latest-tracking mode: omit `version`, or set it to `"latest"`, to always
   install the newest available release.
 
-For latest-tracking Go binaries, *bine* records the actual installed version after
-`go install @latest`. This lets `bine list --outdated` report whether a newer
-release exists, and lets `bine upgrade` reinstall the binary without rewriting
-your configuration file.
+### Latest-tracking Go workflow
+
+If you currently install a Go tool like this:
+
+```bash
+go install golang.org/x/vuln/cmd/govulncheck@latest
+```
+
+the equivalent *bine* configuration is:
+
+```json
+{
+  "name": "govulncheck",
+  "go_package": "golang.org/x/vuln/cmd/govulncheck",
+  "version": "latest"
+}
+```
+
+You can also omit `version` entirely; *bine* treats that as `latest` for
+`go_package` entries.
+
+The workflow is:
+
+1. `bine sync`
+   Installs `govulncheck` using `go install ...@latest`.
+2. `bine list --outdated`
+   Shows whether the installed resolved version is behind the current latest
+   release.
+3. `bine upgrade govulncheck`
+   Reinstalls that tool if a newer release exists.
+
+Use `bine upgrade` without an argument to upgrade every configured binary.
+
+This means *bine* keeps track of what exact version was installed from `latest`,
+so it can later tell whether your cached binary is still current without
+rewriting `.bine.json` on every upgrade.
 
 ### Asset pattern variables
 
