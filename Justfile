@@ -48,13 +48,25 @@ release target:
 
   case "{{ target }}" in
     minor)
-      payload='{"publish_minor":true,"publish_patch":false,"version":""}'
+      gh_args=(
+        -f publish_minor=true
+        -f publish_patch=false
+        -f version=
+      )
       ;;
     patch)
-      payload='{"publish_minor":false,"publish_patch":true,"version":""}'
+      gh_args=(
+        -f publish_minor=false
+        -f publish_patch=true
+        -f version=
+      )
       ;;
     v[0-9]*.[0-9]*.[0-9]*)
-      payload='{"publish_minor":false,"publish_patch":false,"version":"{{ target }}"}'
+      gh_args=(
+        -f publish_minor=false
+        -f publish_patch=false
+        -f version="{{ target }}"
+      )
       ;;
     *)
       echo "usage: just release minor|patch|vMAJOR.MINOR.PATCH" >&2
@@ -62,7 +74,7 @@ release target:
       ;;
   esac
 
-  printf '%s\n' "$payload" | gh workflow run release.yml --ref main --json
+  gh workflow run release.yml --ref main "${gh_args[@]}"
 
 # Watch the latest GitHub release workflow run.
 release-watch:
