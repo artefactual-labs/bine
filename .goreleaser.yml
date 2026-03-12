@@ -4,6 +4,7 @@ release:
   github:
     owner: artefactual-labs
     name: bine
+  target_commitish: "{{ .Commit }}"
 builds:
   - id: bine
     goos:
