@@ -52,6 +52,6 @@ sboms:
   - id: packages
     artifacts: package
 changelog:
-  use: github
+  use: git
   abbrev: 8
   groups: []
