@@ -24,8 +24,32 @@ builds:
 archives:
   - formats:
       - binary
+nfpms:
+  - id: packages
+    ids:
+      - bine
+    package_name: bine
+    file_name_template: "{{ .ConventionalFileName }}"
+    vendor: Artefactual Systems Inc.
+    homepage: https://github.com/artefactual-labs/bine
+    maintainer: Artefactual Systems Inc.
+    description: Project-scoped binary manager for development tools.
+    license: Apache 2.0
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/bine/LICENSE
+      - src: README.md
+        dst: /usr/share/doc/bine/README.md
 checksum:
   name_template: "checksums.txt"
+sboms:
+  - id: archives
+    artifacts: archive
+  - id: packages
+    artifacts: package
 changelog:
   use: github
   abbrev: 8
