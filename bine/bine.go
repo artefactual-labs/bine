@@ -191,27 +191,51 @@ func (b *Bine) install(ctx context.Context, bin *bin) (_ string, err error) {
 		return "", fmt.Errorf("failed to check if binary is installed: %v", err)
 	}
 
+	return b.installVersion(ctx, bin, "")
+}
+
+// installVersion installs the configured binary, optionally overriding the
+// version used for the install while preserving the original marker path.
+func (b *Bine) installVersion(ctx context.Context, bin *bin, versionOverride string) (_ string, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("%q: %v", bin.Name, err)
+		}
+	}()
+
 	// Ensure the bin directory exists.
 	if err := os.MkdirAll(b.BinDir, 0o750); err != nil {
 		return "", fmt.Errorf("failed to create bin directory: %v", err)
 	}
 
+	installBin := bin
 	var resolvedVersion string
-	if bin.goPkg() {
-		if err := goInstall(ctx, bin, b.BinDir); err != nil {
+	if versionOverride != "" {
+		clone := *bin
+		clone.Version = versionOverride
+		installBin = &clone
+	}
+
+	binPath := filepath.Join(b.BinDir, bin.Name)
+	if installBin.goPkg() {
+		if err := goInstall(ctx, installBin, b.BinDir); err != nil {
 			return "", fmt.Errorf("failed to install Go tool: %v", err)
 		}
 		// For "latest" bins, resolve the actual installed version so we can
 		// detect upgrades in the future.
 		if bin.isLatest() {
-			if v, err := goInstalledVersion(ctx, binPath); err != nil {
-				b.logger.V(1).Info("Could not determine installed version for 'latest' tracking.", "bin", bin.Name, "err", err)
+			if versionOverride != "" {
+				resolvedVersion = strings.TrimPrefix(installBin.usableVersion(), "v")
 			} else {
-				resolvedVersion = v
+				if v, err := goInstalledVersion(ctx, binPath); err != nil {
+					b.logger.V(1).Info("Could not determine installed version for 'latest' tracking.", "bin", bin.Name, "err", err)
+				} else {
+					resolvedVersion = v
+				}
 			}
 		}
 	} else {
-		if err := binInstall(ctx, b.client, bin, binPath); err != nil {
+		if err := binInstall(ctx, b.client, installBin, binPath); err != nil {
 			return "", fmt.Errorf("failed to install binary: %v", err)
 		}
 	}
@@ -394,27 +418,39 @@ func (b *Bine) markVersion(bin *bin, resolvedVersion string) error {
 	return renameio.WriteFile(versionMarker, data, 0o640, renameio.WithStaticPermissions(0o640))
 }
 
-// removeInstallation removes the cached binary and its version marker.
-func (b *Bine) removeInstallation(bin *bin) error {
+func (b *Bine) removeVersionMarker(bin *bin) error {
 	versionMarker := filepath.Join(b.VersionsDir, bin.Name, bin.markerVersion())
 	if err := os.Remove(versionMarker); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove version marker: %v", err)
-	}
-
-	binPath := filepath.Join(b.BinDir, bin.Name)
-	if err := os.Remove(binPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove binary: %v", err)
 	}
 
 	return nil
 }
 
 func (b *Bine) reinstall(ctx context.Context, bin *bin) error {
-	if err := b.removeInstallation(bin); err != nil {
+	if err := b.removeVersionMarker(bin); err != nil {
 		return err
 	}
 
-	_, err := b.install(ctx, bin)
+	_, err := b.installVersion(ctx, bin, "")
+	return err
+}
+
+func (b *Bine) forceReinstall(ctx context.Context, bin *bin) error {
+	versionOverride := ""
+	if bin.isLatest() {
+		resolvedVersion, ok, err := b.latestResolvedVersion(ctx, bin)
+		if err != nil {
+			var resolveErr latestVersionResolutionError
+			if !errors.As(err, &resolveErr) {
+				return err
+			}
+		} else if ok {
+			versionOverride = resolvedVersion
+		}
+	}
+
+	_, err := b.installVersion(ctx, bin, versionOverride)
 	return err
 }
 
@@ -431,6 +467,20 @@ func (b *Bine) Get(ctx context.Context, name string) (string, error) {
 	}
 
 	return path, nil
+}
+
+// GetForce reinstalls the binary given its name and returns its path.
+func (b *Bine) GetForce(ctx context.Context, name string) (string, error) {
+	bin, err := b.load(name)
+	if err != nil {
+		return "", fmt.Errorf("get: %v", err)
+	}
+
+	if err := b.forceReinstall(ctx, bin); err != nil {
+		return "", fmt.Errorf("get: %v", err)
+	}
+
+	return filepath.Join(b.BinDir, bin.Name), nil
 }
 
 // Run runs a binary given its name and arguments.
@@ -453,14 +503,18 @@ func (b *Bine) Run(ctx context.Context, name string, args []string, streams IOSt
 	return nil
 }
 
-func (b *Bine) syncBins(ctx context.Context, bins []*bin) error {
+func (b *Bine) syncBins(ctx context.Context, bins []*bin, force bool) error {
 	for _, item := range bins {
 		bin, err := b.load(item.Name)
 		if err != nil {
 			return fmt.Errorf("sync: %v", err)
 		}
 
-		_, err = b.install(ctx, bin)
+		if force {
+			err = b.forceReinstall(ctx, bin)
+		} else {
+			_, err = b.install(ctx, bin)
+		}
 		if err != nil {
 			return fmt.Errorf("sync: %v", err)
 		}
@@ -471,7 +525,17 @@ func (b *Bine) syncBins(ctx context.Context, bins []*bin) error {
 
 // Sync installs all binaries defined in the configuration.
 func (b *Bine) Sync(ctx context.Context) error {
-	return b.syncBins(ctx, b.config.Bins)
+	return b.syncBins(ctx, b.config.Bins, false)
+}
+
+// SyncForce reinstalls all binaries defined in the configuration.
+func (b *Bine) SyncForce(ctx context.Context) error {
+	return b.syncBins(ctx, b.config.Bins, true)
+}
+
+// Reinstall reinstalls all binaries defined in the configuration.
+func (b *Bine) Reinstall(ctx context.Context) error {
+	return b.SyncForce(ctx)
 }
 
 func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
@@ -530,7 +594,7 @@ func (b *Bine) upgradeBins(ctx context.Context, bins []*bin) ([]*ListItem, error
 		}
 	}
 
-	if err := b.syncBins(ctx, bins); err != nil {
+	if err := b.syncBins(ctx, bins, false); err != nil {
 		return updates, err
 	}
 

@@ -12,6 +12,68 @@ exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
 ! stdout .
 stderr 'hello world\!'
 
+#
+# Reinstalls all configured Go binaries when --force is used.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+
+bine sync
+! stdout .
+! stderr .
+
+bine sync --force
+! stdout .
+! stderr .
+
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
+bine sync -f
+! stdout .
+! stderr .
+
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
+#
+# Rebuilds the previously resolved version for latest-tracking Go binaries when
+# sync --force is used.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+
+bine sync
+! stdout .
+! stderr .
+
+config .bine-with-go-package.latest.json
+exec mv $BINE_CACHE_DIR/test/$GOOS/$GOARCH/versions/perpignan/1.0.2 $BINE_CACHE_DIR/test/$GOOS/$GOARCH/versions/perpignan/latest
+bine sync --force
+! stdout .
+! stderr .
+
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
+#
+# Keeps the existing Go binary when sync --force fails.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+
+bine sync
+! stdout .
+! stderr .
+
+config .bine-with-unbuildable-go-package.json
+! bine sync --force
+! stdout .
+stderr 'failed to install Go tool'
+
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
 -- .bine.json --
 {
     "project": "test",
@@ -21,6 +83,42 @@ stderr 'hello world\!'
             "url": "https://github.com/sevein/perpignan",
             "version": "1.0.0",
             "asset_pattern": "{name}_{version}_{goos}_{goarch}"
+        }
+    ]
+}
+-- .bine-with-go-package.v1.0.2.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "1.0.2"
+        }
+    ]
+}
+-- .bine-with-go-package.latest.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "latest"
+        }
+    ]
+}
+-- .bine-with-unbuildable-go-package.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            // This version won't build as a Go package because the module
+            // directive wasn't properly named. It can be used to test
+            // error handling during the build.
+            "version": "1.0.1"
         }
     ]
 }

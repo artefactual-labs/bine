@@ -208,8 +208,20 @@ func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string
 		return fmt.Errorf("failed to reset file pointer: %v", err)
 	}
 
-	if err := extract(ctx, f, binPath); err != nil {
+	tmpBin, err := os.CreateTemp(filepath.Dir(binPath), ".bine-bin-install-*")
+	if err != nil {
+		return fmt.Errorf("create temporary binary: %v", err)
+	}
+	tmpBinPath := tmpBin.Name()
+	_ = tmpBin.Close()
+	defer func() { _ = os.Remove(tmpBinPath) }()
+
+	if err := extract(ctx, f, tmpBinPath); err != nil {
 		return fmt.Errorf("extract failed: %v", err)
+	}
+
+	if err := replaceFile(tmpBinPath, binPath); err != nil {
+		return fmt.Errorf("move installed binary: %v", err)
 	}
 
 	return nil

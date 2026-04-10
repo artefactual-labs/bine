@@ -92,6 +92,22 @@ func TestInstalledReturnsFalseWhenLatestVersionCannotBeResolved(t *testing.T) {
 	assert.Assert(t, !ok)
 }
 
+func TestGetForceLatestSucceedsWhenResolvedVersionCannotBeDetermined(t *testing.T) {
+	injectFakeExec(t, "TestHelperProcessInstallButFailGoVersionM")
+
+	b, bin := newLatestTrackingTestBine(t, "2.0.0")
+	binPath := writeLatestTrackingBinary(t, b, bin)
+	assert.NilError(t, b.markVersion(bin, ""))
+
+	path, err := b.GetForce(t.Context(), bin.Name)
+	assert.NilError(t, err)
+	assert.Equal(t, path, binPath)
+
+	blob, err := os.ReadFile(binPath)
+	assert.NilError(t, err)
+	assert.Equal(t, string(blob), "binary")
+}
+
 func TestListOutdatedRepairsLatestResolvedVersion(t *testing.T) {
 	injectFakeExec(t, "TestHelperProcessGoVersionM")
 

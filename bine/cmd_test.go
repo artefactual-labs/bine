@@ -14,7 +14,7 @@ func fakeExecCommand(t *testing.T, testHelperName string) func(ctx context.Conte
 		cs = append(cs, args...)
 		t.Logf("Preparing *exec.Cmd using test binary %q with args: %v", os.Args[0], cs)
 		cmd := exec.CommandContext(ctx, os.Args[0], cs...)
-		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		return cmd
 	}
 }

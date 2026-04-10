@@ -13,8 +13,8 @@ require (
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
-	go.artefactual.dev/tools v0.23.0
-	golang.org/x/mod v0.33.0
+	go.artefactual.dev/tools v0.24.0
+	golang.org/x/mod v0.35.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -38,11 +38,11 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.27.0 // indirect
+	go.uber.org/zap v1.27.1 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/tools v0.41.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/tools v0.43.0 // indirect
 )
 
 tool github.com/artefactual-labs/bine
