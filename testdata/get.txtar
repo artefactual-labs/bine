@@ -32,6 +32,48 @@ exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
 stdout 'Hello world\!\n'
 
 #
+# Rebuilds a Go binary when --force is used.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+bine get perpignan
+cmpenv stdout ../get-perpignan
+! stderr .
+
+bine get --force perpignan
+cmpenv stdout ../get-perpignan
+! stderr .
+
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
+bine get -f perpignan
+cmpenv stdout ../get-perpignan
+! stderr .
+
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+
+#
+# Rebuilds the previously resolved version for latest-tracking Go binaries when
+# --force is used.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+bine get perpignan
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+config .bine-with-go-package.latest.json
+exec mv $BINE_CACHE_DIR/test/$GOOS/$GOARCH/versions/perpignan/1.0.2 $BINE_CACHE_DIR/test/$GOOS/$GOARCH/versions/perpignan/latest
+bine get --force perpignan
+cmpenv stdout ../get-perpignan
+! stderr .
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+exec grep '"resolved_version": "1.0.2"' $BINE_CACHE_DIR/test/$GOOS/$GOARCH/versions/perpignan/latest
+stdout '"resolved_version": "1.0.2"'
+
+#
 # Builds Go binary with a configured name different from the package basename.
 #
 
@@ -102,6 +144,21 @@ setup .bine-with-unbuildable-go-package.json
 ! bine get perpignan
 ! stdout .
 stderr 'failed to install Go tool'
+
+#
+# Keeps the existing Go binary when a forced reinstall fails.
+#
+
+setup .bine-with-go-package.v1.0.2.json
+bine get perpignan
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
+config .bine-with-unbuildable-go-package.json
+! bine get --force perpignan
+! stdout .
+stderr 'failed to install Go tool'
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
 
 #
 # Extraction.
@@ -253,6 +310,17 @@ stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
             "name": "perpignan",
             "go_package": "github.com/sevein/perpignan",
             "version": "1.0.3"
+        }
+    ]
+}
+-- .bine-with-go-package.latest.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "latest"
         }
     ]
 }

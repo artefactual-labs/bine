@@ -19,6 +19,7 @@ import (
 	"github.com/artefactual-labs/bine/cmd/getcmd"
 	"github.com/artefactual-labs/bine/cmd/listcmd"
 	"github.com/artefactual-labs/bine/cmd/pathcmd"
+	"github.com/artefactual-labs/bine/cmd/reinstallcmd"
 	"github.com/artefactual-labs/bine/cmd/rootcmd"
 	"github.com/artefactual-labs/bine/cmd/runcmd"
 	"github.com/artefactual-labs/bine/cmd/synccmd"
@@ -57,6 +58,7 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		_    = getcmd.New(root)
 		_    = listcmd.New(root)
 		_    = pathcmd.New(root)
+		_    = reinstallcmd.New(root)
 		_    = runcmd.New(root)
 		_    = synccmd.New(root)
 		_    = upgradecmd.New(root)

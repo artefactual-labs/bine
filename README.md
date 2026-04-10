@@ -164,6 +164,10 @@ Typical workflow:
 2. `bine list --outdated` checks whether the installed resolved version is now behind.
 3. `bine upgrade govulncheck` refreshes that tool if a newer release exists.
 
+If you need to rebuild cached binaries without changing their configured
+versions, for example after switching Go toolchains, use `bine get --force
+<NAME>`, `bine sync --force`, or `bine reinstall`.
+
 `bine upgrade` without an argument upgrades every configured binary.
 
 `bine` keeps track of the exact version installed from `latest`, so it can
@@ -205,11 +209,12 @@ Core subcommands:
 
 - `bine config get <KEY>`: Print a configuration value.
 - `bine env`: Output shell code that adds the project bin directory to `PATH`.
-- `bine get <NAME>`: Download a binary and print its path.
+- `bine get [--force] <NAME>`: Download one binary and print its path.
 - `bine list`: List configured binaries.
 - `bine path`: Print the current project bin directory.
+- `bine reinstall`: Reinstall all configured binaries. Alias for `bine sync --force`.
 - `bine run <NAME> [ARGS...]`: Download a binary and execute it.
-- `bine sync`: Install all binaries defined in `.bine.json`.
+- `bine sync [--force]`: Install all binaries defined in `.bine.json`.
 - `bine upgrade [NAME]`: Upgrade one binary or all configured binaries.
 - `bine version`: Print the current `bine` version.
 

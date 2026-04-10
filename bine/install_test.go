@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -71,6 +72,95 @@ func TestHelperProcessGoVersionM(t *testing.T) {
 	}
 
 	os.Exit(1)
+}
+
+func TestHelperProcessInstallButFailGoVersionM(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	args := os.Args
+	for i, a := range args {
+		if a == "version" && i+1 < len(args) && args[i+1] == "-m" {
+			os.Exit(1)
+		}
+	}
+
+	gobin := ""
+	for _, item := range os.Environ() {
+		if value, ok := strings.CutPrefix(item, "GOBIN="); ok {
+			gobin = value
+			break
+		}
+	}
+	if gobin == "" {
+		os.Exit(1)
+	}
+
+	fields := strings.Fields(strings.Join(os.Args, " "))
+	pkgWithVersion := fields[len(fields)-1]
+	pkg, _, ok := strings.Cut(pkgWithVersion, "@")
+	if !ok {
+		os.Exit(1)
+	}
+
+	if err := os.WriteFile(filepath.Join(gobin, defaultGoBinaryName(pkg)), []byte("binary"), 0o755); err != nil {
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+}
+
+func TestHelperProcessWithCounter(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	args := strings.Join(os.Args, " ")
+	gobin := ""
+	for _, item := range os.Environ() {
+		if value, ok := strings.CutPrefix(item, "GOBIN="); ok {
+			gobin = value
+			break
+		}
+	}
+	if gobin == "" {
+		os.Exit(1)
+	}
+
+	counterPath := os.Getenv("BINE_HELPER_COUNTER")
+	if counterPath == "" {
+		os.Exit(1)
+	}
+
+	count := 0
+	if blob, err := os.ReadFile(counterPath); err == nil {
+		count, err = strconv.Atoi(strings.TrimSpace(string(blob)))
+		if err != nil {
+			os.Exit(1)
+		}
+	} else if !os.IsNotExist(err) {
+		os.Exit(1)
+	}
+	count++
+
+	if err := os.WriteFile(counterPath, []byte(strconv.Itoa(count)), 0o644); err != nil {
+		os.Exit(1)
+	}
+
+	fields := strings.Fields(args)
+	pkgWithVersion := fields[len(fields)-1]
+	pkg, _, ok := strings.Cut(pkgWithVersion, "@")
+	if !ok {
+		os.Exit(1)
+	}
+
+	content := fmt.Sprintf("binary-%d", count)
+	if err := os.WriteFile(filepath.Join(gobin, defaultGoBinaryName(pkg)), []byte(content), 0o755); err != nil {
+		os.Exit(1)
+	}
+
+	os.Exit(0)
 }
 
 func TestGoInstall(t *testing.T) {

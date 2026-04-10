@@ -14,16 +14,18 @@ type Config struct {
 	*rootcmd.RootConfig
 	Command *ff.Command
 	Flags   *ff.FlagSet
+	Force   bool
 }
 
 func New(parent *rootcmd.RootConfig) *Config {
 	var cfg Config
 	cfg.RootConfig = parent
 	cfg.Flags = ff.NewFlagSet("get").SetParent(parent.Flags)
+	cfg.Flags.BoolVar(&cfg.Force, 'f', "force", "Reinstall the binary even if it is already installed.")
 
 	cfg.Command = &ff.Command{
 		Name:      "get",
-		Usage:     "bine get <NAME>",
+		Usage:     "bine get [FLAGS] <NAME>",
 		ShortHelp: "Download a binary and print its path.",
 		Flags:     cfg.Flags,
 		Exec:      cfg.Exec,
@@ -39,7 +41,13 @@ func (cfg *Config) Exec(ctx context.Context, args []string) error {
 
 	name := args[0]
 
-	path, err := cfg.Bine.Get(ctx, name)
+	var path string
+	var err error
+	if cfg.Force {
+		path, err = cfg.Bine.GetForce(ctx, name)
+	} else {
+		path, err = cfg.Bine.Get(ctx, name)
+	}
 	if err != nil {
 		return err
 	}

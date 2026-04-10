@@ -1,0 +1,24 @@
+setup .bine-with-go-package.v1.0.2.json
+
+bine reinstall
+! stdout .
+! stderr .
+
+exec $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'Hello world\!\n'
+
+! bine reinstall perpignan
+! stdout .
+stderr 'reinstall accepts no arguments'
+
+-- .bine-with-go-package.v1.0.2.json --
+{
+    "project": "test",
+    "bins": [
+        {
+            "name": "perpignan",
+            "go_package": "github.com/sevein/perpignan",
+            "version": "1.0.2"
+        }
+    ]
+}
