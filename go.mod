@@ -10,11 +10,11 @@ require (
 	github.com/google/renameio/v2 v2.0.2
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mholt/archives v0.1.5
-	github.com/pelletier/go-toml/v2 v2.0.9
+	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
-	go.artefactual.dev/tools v0.24.0
+	go.artefactual.dev/tools v0.25.0
 	golang.org/x/mod v0.35.0
 	gotest.tools/v3 v3.5.2
 )
