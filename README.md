@@ -8,10 +8,10 @@
 
 **bine** manages external binary tools required by a development project.
 
-You declare the tools your project needs in `.bine.json`. `bine` downloads them
-into a project-scoped cache and gives you a consistent way to run them. This
-keeps versions aligned across local development and CI without polluting global
-system paths.
+You declare the tools your project needs in `.bine.json` or `.bine.toml`.
+`bine` downloads them into a project-scoped cache and gives you a consistent
+way to run them. This keeps versions aligned across local development and CI
+without polluting global system paths.
 
 ## Why bine
 
@@ -51,9 +51,10 @@ In that setup, invoke it as `go tool bine ...`.
 
 ## Quick start
 
-Create a `.bine.json` file in your project root:
+Create a `.bine.json` or `.bine.toml` file in your project root:
 
-`.bine.json` accepts JSON with comments.
+`.bine.json` accepts JSON with comments. `.bine.toml` is also supported, but
+`bine upgrade` currently only rewrites JSON config files.
 
 ```jsonc
 {
@@ -102,7 +103,8 @@ golangci-lint --help
 
 ## Configuration
 
-The `.bine.json` file defines the binaries available in the current project.
+The `.bine.json` or `.bine.toml` file defines the binaries available in the
+current project.
 
 ```jsonc
 {
@@ -171,8 +173,8 @@ versions, for example after switching Go toolchains, use `bine get --force
 `bine upgrade` without an argument upgrades every configured binary.
 
 `bine` keeps track of the exact version installed from `latest`, so it can
-later report whether that cached binary is stale without rewriting
-`.bine.json`.
+later report whether that cached binary is stale without rewriting the config
+file.
 
 ### `asset_pattern` variables
 
@@ -214,7 +216,7 @@ Core subcommands:
 - `bine path`: Print the current project bin directory.
 - `bine reinstall`: Reinstall all configured binaries. Alias for `bine sync --force`.
 - `bine run <NAME> [ARGS...]`: Download a binary and execute it.
-- `bine sync [--force]`: Install all binaries defined in `.bine.json`.
+- `bine sync [--force]`: Install all binaries defined in the project config file.
 - `bine upgrade [NAME]`: Upgrade one binary or all configured binaries.
 - `bine version`: Print the current `bine` version.
 

@@ -15,22 +15,22 @@ import (
 )
 
 type bin struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
+	Name    string `json:"name" toml:"name"`
+	Version string `json:"version" toml:"version"`
 
 	// Fields for asset-based downloads.
-	URL          string `json:"url,omitempty"`
-	AssetPattern string `json:"asset_pattern,omitempty"`
+	URL          string `json:"url,omitempty" toml:"url,omitempty"`
+	AssetPattern string `json:"asset_pattern,omitempty" toml:"asset_pattern,omitempty"`
 
 	// Template for tag formatting. Supports {version} placeholder.
 	// Defaults to "v{version}" if not specified.
-	TagPattern string `json:"tag_pattern,omitempty"`
+	TagPattern string `json:"tag_pattern,omitempty" toml:"tag_pattern,omitempty"`
 
 	// Field for go-based installs.
-	GoPackage string `json:"go_package,omitempty"`
+	GoPackage string `json:"go_package,omitempty" toml:"go_package,omitempty"`
 
 	// Allows to apply modifications during variable expansion.
-	Modifiers map[string]map[string]string `json:"modifiers,omitempty"`
+	Modifiers map[string]map[string]string `json:"modifiers,omitempty" toml:"modifiers,omitempty"`
 
 	// asset is computed by the namer when the config is loaded.
 	asset string

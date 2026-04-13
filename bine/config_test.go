@@ -51,7 +51,7 @@ func TestConfigUpdate(t *testing.T) {
 	})
 
 	t.Run("Rejects irrelevant updates", func(t *testing.T) {
-		cfg := &config{path: "/tmp/.bine.json"}
+		cfg := &config{path: "/tmp/.bine.json", format: configFormatJSON}
 
 		err := cfg.update([]*ListItem{{Name: "irrelevant", Latest: "1.1.0"}})
 		assert.NilError(t, err)
@@ -63,7 +63,8 @@ func TestConfigUpdate(t *testing.T) {
 			Bins: []*bin{
 				{Name: "perpignan", Version: "1.0.0"},
 			},
-			path: "/tmp/.bine.12345.json",
+			path:   "/tmp/.bine.12345.json",
+			format: configFormatJSON,
 		}
 
 		err := cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
@@ -114,6 +115,65 @@ func TestConfigUpdate(t *testing.T) {
     ]
 }`))
 	})
+}
+
+func TestLoadConfigTOML(t *testing.T) {
+	tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.toml", `project = "test"
+
+[[bins]]
+name = "perpignan"
+url = "https://github.com/sevein/perpignan"
+version = "1.0.0"
+asset_pattern = "{name}_{version}_{goos}_{goarch}"
+`))
+
+	t.Chdir(tmpDir.Path())
+
+	cfg, err := loadConfig(t.Context(), nil, "")
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.Project, "test")
+	assert.Equal(t, cfg.path, tmpDir.Join(".bine.toml"))
+	assert.Equal(t, cfg.format, configFormatTOML)
+	assert.Equal(t, len(cfg.Bins), 1)
+	assert.Equal(t, cfg.Bins[0].Name, "perpignan")
+	assert.Equal(t, cfg.Bins[0].Version, "1.0.0")
+	assert.Equal(t, cfg.Bins[0].AssetPattern, "{name}_{version}_{goos}_{goarch}")
+}
+
+func TestConfigUpdateRejectsTOML(t *testing.T) {
+	tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.toml", `project = "test"
+
+[[bins]]
+name = "perpignan"
+url = "https://github.com/sevein/perpignan"
+version = "1.0.0"
+asset_pattern = "{name}_{version}_{goos}_{goarch}"
+`))
+
+	cfg := &config{
+		Project: "test",
+		Bins: []*bin{
+			{Name: "perpignan", Version: "1.0.0"},
+		},
+		path:   tmpDir.Join(".bine.toml"),
+		format: configFormatTOML,
+		namer:  &namer{},
+	}
+
+	err := cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
+	assert.Error(t, err, "upgrade is not supported for TOML config files; use .bine.json or update versions manually")
+	assert.Equal(t, cfg.Bins[0].Version, "1.0.0")
+
+	contents, readErr := os.ReadFile(tmpDir.Join(".bine.toml"))
+	assert.NilError(t, readErr)
+	assert.Equal(t, string(contents), `project = "test"
+
+[[bins]]
+name = "perpignan"
+url = "https://github.com/sevein/perpignan"
+version = "1.0.0"
+asset_pattern = "{name}_{version}_{goos}_{goarch}"
+`)
 }
 
 func TestConfigModifiers(t *testing.T) {

@@ -47,16 +47,25 @@ func TestScripts(t *testing.T) {
 				ts.Check(ts.Chdir(projectDir))
 				// Populate the configuration file.
 				if len(args) > 0 {
-					config := ts.ReadFile(filepath.Join(ts.Getenv("WORK"), args[0]))
-					ts.Check(os.WriteFile(filepath.Join(projectDir, ".bine.json"), []byte(config), 0o644))
+					configPath := filepath.Join(ts.Getenv("WORK"), args[0])
+					config := ts.ReadFile(configPath)
+					ts.Check(os.WriteFile(filepath.Join(projectDir, targetConfigFilename(configPath)), []byte(config), 0o644))
 				}
 			},
 			// `config` only rewrites configuration file.
 			"config": func(ts *testscript.TestScript, neg bool, args []string) {
 				projectDir := filepath.Join(ts.Getenv("WORK"), "project")
-				config := ts.ReadFile(filepath.Join(ts.Getenv("WORK"), args[0]))
-				ts.Check(os.WriteFile(filepath.Join(projectDir, ".bine.json"), []byte(config), 0o644))
+				configPath := filepath.Join(ts.Getenv("WORK"), args[0])
+				config := ts.ReadFile(configPath)
+				ts.Check(os.WriteFile(filepath.Join(projectDir, targetConfigFilename(configPath)), []byte(config), 0o644))
 			},
 		},
 	})
+}
+
+func targetConfigFilename(path string) string {
+	if filepath.Ext(path) == ".toml" {
+		return ".bine.toml"
+	}
+	return ".bine.json"
 }

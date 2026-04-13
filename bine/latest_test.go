@@ -48,8 +48,9 @@ func newLatestTrackingTestBine(t *testing.T, latest string) (*Bine, *bin) {
 	}
 
 	b.config = &config{
-		path: configPath,
-		Bins: []*bin{tool},
+		path:   configPath,
+		format: configFormatJSON,
+		Bins:   []*bin{tool},
 	}
 
 	return b, tool
@@ -160,7 +161,8 @@ func TestListOneScopesOutdatedChecksToTargetBin(t *testing.T) {
 
 	b := &Bine{
 		config: &config{
-			path: configPath,
+			path:   configPath,
+			format: configFormatJSON,
 			Bins: []*bin{
 				{
 					Name:      "broken",
@@ -202,7 +204,8 @@ func TestUpgradeOneOnlyUpdatesRequestedBin(t *testing.T) {
 		BinDir:      filepath.Join(cacheDir, "bin"),
 		VersionsDir: filepath.Join(cacheDir, "versions"),
 		config: &config{
-			path: configPath,
+			path:   configPath,
+			format: configFormatJSON,
 			Bins: []*bin{
 				{
 					Name:      "tool",
