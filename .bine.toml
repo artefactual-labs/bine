@@ -6,16 +6,13 @@ project = "bine"
 name = "golangci-lint"
 url = "https://github.com/golangci/golangci-lint"
 version = "2.11.4"
-asset_pattern = "{name}-{version}-{goos}-{goarch}.tar.gz"
 
 [[bins]]
 name = "go-mod-outdated"
 url = "https://github.com/psampaz/go-mod-outdated"
 version = "0.9.0"
-asset_pattern = "{name}_{version}_{os}_{arch}.tar.gz"
 
 [[bins]]
 name = "gotestsum"
 url = "https://github.com/gotestyourself/gotestsum"
 version = "1.13.0"
-asset_pattern = "{name}_{version}_{goos}_{goarch}.tar.gz"
