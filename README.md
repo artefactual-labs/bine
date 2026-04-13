@@ -51,13 +51,13 @@ In that setup, invoke it as `go tool bine ...`.
 
 ## Quick start
 
-Create a `.bine.json` or `.bine.toml` file in your project root:
+Create a `.bine.json` or `.bine.toml` file in your project root.
 
-`.bine.json` accepts JSON with comments. `.bine.toml` is also supported, but
-`bine upgrade` currently only rewrites JSON config files.
+This is the JSON variant (`.bine.json`):
 
 ```jsonc
 {
+  // Comments are supported.
   "project": "my-awesome-project",
   "bins": [
     {
@@ -68,6 +68,18 @@ Create a `.bine.json` or `.bine.toml` file in your project root:
     }
   ]
 }
+```
+
+This is the TOML variant (`.bine.toml`):
+
+```toml
+project = "my-awesome-project"
+
+[[bins]]
+name = "golangci-lint"
+url = "https://github.com/golangci/golangci-lint"
+version = "2.0.2"
+asset_pattern = "{name}-{version}-{goos}-{goarch}.tar.gz"
 ```
 
 Install the configured tools:
