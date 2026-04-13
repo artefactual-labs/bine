@@ -23,6 +23,27 @@ stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
 
 cmp .bine.json ../.bine-upgraded.json
 
+setup .bine-original.toml
+
+bine sync
+
+# Confirm that we've installed v1.0.0.
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan.git\tv1\.0\.0'
+
+bine upgrade --dry-run
+cmp stdout ../upgrade
+! stderr .
+
+bine upgrade
+stdout 'Upgrade process completed'
+
+# Confirm that the upgrade happened.
+exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
+stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.3'
+
+cmp .bine.toml ../.bine-upgraded.toml
+
 -- .bine-original.json --
 {
     "project": "test",
@@ -48,6 +69,26 @@ cmp .bine.json ../.bine-upgraded.json
         }
     ]
 }
+
+-- .bine-original.toml --
+# Upgrade this file in place.
+project = "test"
+
+[[bins]] # Keep this comment.
+name = "perpignan"
+url = "https://github.com/sevein/perpignan"
+version = '1.0.0' # Trailing comment.
+asset_pattern = "{name}_{version}_{goos}_{goarch}"
+
+-- .bine-upgraded.toml --
+# Upgrade this file in place.
+project = "test"
+
+[[bins]] # Keep this comment.
+name = "perpignan"
+url = "https://github.com/sevein/perpignan"
+version = '1.0.3' # Trailing comment.
+asset_pattern = "{name}_{version}_{goos}_{goarch}"
 
 -- upgrade --
 perpignan v1.0.0 » v1.0.3

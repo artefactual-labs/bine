@@ -140,14 +140,64 @@ asset_pattern = "{name}_{version}_{goos}_{goarch}"
 	assert.Equal(t, cfg.Bins[0].AssetPattern, "{name}_{version}_{goos}_{goarch}")
 }
 
-func TestConfigUpdateRejectsTOML(t *testing.T) {
-	tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.toml", `project = "test"
+func TestConfigUpdateTOML(t *testing.T) {
+	tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.toml", `# Top comment.
+project = "test"
 
-[[bins]]
+[[bins]] # Array table comment.
 name = "perpignan"
 url = "https://github.com/sevein/perpignan"
-version = "1.0.0"
+version = '1.0.0' # Keep trailing comment.
 asset_pattern = "{name}_{version}_{goos}_{goarch}"
+
+[[bins]]
+name = "go-mod-outdated"
+url = "https://github.com/psampaz/go-mod-outdated"
+version = "0.9.0"
+asset_pattern = "{name}_{version}_{os}_{arch}.tar.gz"
+`))
+
+	cfg := &config{
+		Project: "test",
+		Bins: []*bin{
+			{Name: "perpignan", Version: "1.0.0"},
+			{Name: "go-mod-outdated", Version: "0.9.0"},
+		},
+		path:   tmpDir.Join(".bine.toml"),
+		format: configFormatTOML,
+		namer:  &namer{},
+	}
+
+	err := cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.Bins[0].Version, "1.1.0")
+	assert.Equal(t, cfg.Bins[1].Version, "0.9.0")
+
+	contents, readErr := os.ReadFile(tmpDir.Join(".bine.toml"))
+	assert.NilError(t, readErr)
+	assert.DeepEqual(t, contents, []byte(`# Top comment.
+project = "test"
+
+[[bins]] # Array table comment.
+name = "perpignan"
+url = "https://github.com/sevein/perpignan"
+version = '1.1.0' # Keep trailing comment.
+asset_pattern = "{name}_{version}_{goos}_{goarch}"
+
+[[bins]]
+name = "go-mod-outdated"
+url = "https://github.com/psampaz/go-mod-outdated"
+version = "0.9.0"
+asset_pattern = "{name}_{version}_{os}_{arch}.tar.gz"
+`))
+}
+
+func TestConfigUpdateRejectsUnsupportedTOMLLayout(t *testing.T) {
+	tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.toml", `project = "test"
+
+bins = [
+  { name = "perpignan", url = "https://github.com/sevein/perpignan", version = "1.0.0", asset_pattern = "{name}_{version}_{goos}_{goarch}" },
+]
 `))
 
 	cfg := &config{
@@ -161,18 +211,16 @@ asset_pattern = "{name}_{version}_{goos}_{goarch}"
 	}
 
 	err := cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
-	assert.Error(t, err, "upgrade is not supported for TOML config files; use .bine.json or update versions manually")
+	assert.Error(t, err, "upgrade is only supported for TOML configs using [[bins]] tables; couldn't update perpignan")
 	assert.Equal(t, cfg.Bins[0].Version, "1.0.0")
 
 	contents, readErr := os.ReadFile(tmpDir.Join(".bine.toml"))
 	assert.NilError(t, readErr)
 	assert.Equal(t, string(contents), `project = "test"
 
-[[bins]]
-name = "perpignan"
-url = "https://github.com/sevein/perpignan"
-version = "1.0.0"
-asset_pattern = "{name}_{version}_{goos}_{goarch}"
+bins = [
+  { name = "perpignan", url = "https://github.com/sevein/perpignan", version = "1.0.0", asset_pattern = "{name}_{version}_{goos}_{goarch}" },
+]
 `)
 }
 
