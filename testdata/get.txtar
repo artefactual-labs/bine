@@ -161,10 +161,10 @@ exec go version -m $BINE_CACHE_DIR/test/$GOOS/$GOARCH/bin/perpignan
 stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
 
 #
-# Extraction.
+# Known binary library defaults and extraction.
 #
 
-setup .bine-with-temporal-binary.json
+setup .bine-with-known-temporal-binary.json
 bine get temporal-cli
 cmpenv stdout ../get-temporal-cli
 ! stderr .
@@ -371,18 +371,21 @@ stdout 'mod\tgithub\.com\/sevein\/perpignan\tv1\.0\.2'
         }
     ]
 }
--- .bine-with-temporal-binary.json --
+-- .bine-with-known-temporal-binary.json --
 {
     "project": "test",
     "bins": [
+        // This intentionally omits asset_pattern. The source URL is known by
+        // bine's built-in library, which supplies:
+        //   temporal_cli_{version}_{goos}_{goarch}.tar.gz
+        //
         // The archive contains two files: LICENSE and temporal.
         // We test that bine can find the "temporal" binary given that the
         // name attribute is named "temporal-cli".
         {
             "name": "temporal-cli",
             "url": "https://github.com/temporalio/cli",
-            "version": "0.10.6",
-            "asset_pattern": "temporal_cli_{version}_{goos}_{goarch}.tar.gz"
+            "version": "0.10.6"
         }
     ]
 }

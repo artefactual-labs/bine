@@ -70,6 +70,7 @@ func loadConfig(ctx context.Context, client *http.Client, ghAPIToken string) (*c
 	}
 	cfg.path = configFile.path
 	cfg.format = configFile.format
+	applyLibraryDefaults(cfg)
 
 	if cfg.Project == "" {
 		return nil, fmt.Errorf("project name is empty in config file %q", configFile.path)

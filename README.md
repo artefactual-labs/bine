@@ -148,6 +148,23 @@ Each entry in `bins` uses one installation strategy:
 - GitHub release assets, using fields such as `url` and `asset_pattern`
 - Go packages, using `go_package`
 
+### Known binaries
+
+`bine` includes built-in defaults for common GitHub release assets. When `url`
+matches a known source, `bine` can fill repeated fields such as `asset_pattern`,
+`tag_pattern`, and `modifiers`. The bin `name` is only the local executable name;
+it is not used to choose library defaults. Any fields you set explicitly still
+take precedence.
+
+```toml
+[[bins]]
+name = "go-mod-outdated"
+url = "https://github.com/psampaz/go-mod-outdated"
+version = "0.9.0"
+```
+
+See the [known binaries library] for the current built-in templates.
+
 ### Go package versions
 
 When `go_package` is used, `version` supports two modes:
@@ -303,6 +320,7 @@ go tool bine env --shell=fish | source
 For a reusable helper function, see [`examples/fish`].
 
 [releases page]: https://github.com/artefactual-labs/bine/releases
+[known binaries library]: https://github.com/artefactual-labs/bine/blob/main/bine/library.go
 [`examples`]: ./examples
 [`examples/fish`]: ./examples/fish
 [`examples/make`]: ./examples/make
