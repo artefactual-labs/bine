@@ -1,8 +1,8 @@
 module github.com/artefactual-labs/bine
 
-go 1.26
+go 1.25.0
 
-toolchain go1.26.1
+toolchain go1.26.2
 
 require (
 	github.com/go-logr/logr v1.4.3
@@ -10,6 +10,7 @@ require (
 	github.com/google/renameio/v2 v2.0.2
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mholt/archives v0.1.5
+	github.com/pelletier/go-toml/v2 v2.0.9
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd

@@ -5,6 +5,12 @@ bine config get project
 cmp stdout ../project-name
 ! stderr .
 
+# Retrieves the project name from TOML too.
+setup .bine.toml
+bine config get project
+cmp stdout ../project-name
+! stderr .
+
 # Rejects invalid command.
 ! bine config
 ! stdout .
@@ -25,5 +31,13 @@ stderr 'config get requires one argument'
 	"project": "test-project",
 	"bins": []
 }
+-- .bine.toml --
+project = "test-project"
+
+[[bins]]
+name = "perpignan"
+url = "https://github.com/sevein/perpignan"
+version = "1.0.0"
+asset_pattern = "{name}_{version}_{goos}_{goarch}"
 -- project-name --
 test-project
