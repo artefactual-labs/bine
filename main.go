@@ -72,6 +72,7 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		fmt.Fprintf(stderr, "\n%s\n", ffhelp.Command(root.Command))
 		return err
 	}
+	root.ResolveVerbosity()
 
 	var logger logr.Logger
 	if root.Verbosity > 0 {
