@@ -251,7 +251,9 @@ Core subcommands:
 
 Global flags:
 
-- `-v, --verbosity`: Increase log verbosity.
+- `-v, --verbose`: Increase log verbosity. Repeat as `-vv` or `-vvv`; `-vvv` is
+  the highest shorthand level we expect to need in practice.
+- `--verbosity=N`: Set the log verbosity level explicitly.
 - `--cache-dir`: Override the cache directory location.
 - `--github-api-token`: Provide a GitHub API token for authenticated requests.
 

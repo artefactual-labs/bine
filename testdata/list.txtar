@@ -25,7 +25,18 @@ bine list --installed --json
 cmp stdout ../list-installed-json
 ! stderr .
 
-# Discovers outdated binaries.
+# Discovers outdated binaries with repeated verbosity flags.
+bine list --outdated -vv
+cmp stdout ../list-outdated
+stderr 'performing request'
+
+# Single verbose mode emits V(1) logs but not request tracing.
+bine list --outdated -v
+cmp stdout ../list-outdated
+stderr 'Starting bine.'
+! stderr 'performing request'
+
+# Explicit verbosity remains supported.
 bine list --outdated --verbosity=2
 cmp stdout ../list-outdated
 stderr 'performing request'
