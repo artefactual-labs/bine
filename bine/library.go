@@ -48,6 +48,12 @@ var knownAssetTemplates = map[string]binTemplate{
 	},
 	"https://github.com/jqlang/jq": {
 		AssetPattern: "{name}-{goos}-{goarch}",
+		TagPattern:   "{name}-{version}",
+		Modifiers: map[string]map[string]string{
+			"goos": {
+				"darwin": "macos",
+			},
+		},
 	},
 	"https://github.com/golang-migrate/migrate": {
 		AssetPattern: "{name}.{goos}-{goarch}.tar.gz",

@@ -92,6 +92,24 @@ func TestApplyLibraryDefaults(t *testing.T) {
 		assert.Equal(t, cfg.Bins[0].GoPackage, "example.com/workflowcheck")
 	})
 
+	t.Run("fills known tag pattern and modifiers", func(t *testing.T) {
+		cfg := &config{
+			Bins: []*bin{
+				{
+					Name:    "jq",
+					URL:     "https://github.com/jqlang/jq",
+					Version: "1.8.1",
+				},
+			},
+		}
+
+		applyLibraryDefaults(cfg)
+
+		assert.Equal(t, cfg.Bins[0].AssetPattern, "{name}-{goos}-{goarch}")
+		assert.Equal(t, cfg.Bins[0].TagPattern, "{name}-{version}")
+		assert.Equal(t, cfg.Bins[0].Modifiers["goos"]["darwin"], "macos")
+	})
+
 	t.Run("preserves user fields", func(t *testing.T) {
 		cfg := &config{
 			Bins: []*bin{
