@@ -2,7 +2,7 @@ module github.com/artefactual-labs/bine
 
 go 1.25.0
 
-toolchain go1.26.2
+toolchain go1.26.3
 
 require (
 	github.com/go-logr/logr v1.4.3
@@ -12,7 +12,7 @@ require (
 	github.com/mholt/archives v0.1.5
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
-	github.com/rogpeppe/go-internal v1.14.1
+	github.com/rogpeppe/go-internal v1.15.0
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
 	go.artefactual.dev/tools v0.25.1
 	golang.org/x/mod v0.36.0
