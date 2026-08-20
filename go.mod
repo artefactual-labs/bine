@@ -1,23 +1,23 @@
 module github.com/artefactual-labs/bine
 
-go 1.25.0
+go 1.26.0
 
-toolchain go1.26.3
+toolchain go1.27.0
 
 require (
 	github.com/cli/browser v1.3.0
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/renameio/v2 v2.0.2
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mholt/archives v0.1.5
-	github.com/pelletier/go-toml/v2 v2.3.1
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
-	github.com/rogpeppe/go-internal v1.15.0
-	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
+	github.com/rogpeppe/go-internal v1.16.0
+	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
 	github.com/zalando/go-keyring v0.2.8
-	go.artefactual.dev/tools v0.25.1
-	golang.org/x/mod v0.36.0
+	go.artefactual.dev/tools v0.26.0
+	golang.org/x/mod v0.40.0
 	golang.org/x/oauth2 v0.36.0
 	gotest.tools/v3 v3.5.2
 )
@@ -46,9 +46,10 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 )
 
 tool github.com/artefactual-labs/bine
