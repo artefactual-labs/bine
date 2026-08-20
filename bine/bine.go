@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/google/renameio/v2"
@@ -24,9 +25,10 @@ const (
 )
 
 type Bine struct {
-	logger logr.Logger
-	client *http.Client
-	config *config
+	logger        logr.Logger
+	client        *http.Client
+	config        *config
+	checkInterval time.Duration
 
 	Project     string // Project name.
 	CacheDir    string // e.g. ~/.cache/bine/project/linux/amd64/
@@ -60,10 +62,11 @@ func NewWithOptions(opts ...Option) (*Bine, error) {
 type Option func(*options) error
 
 type options struct {
-	ctx          context.Context
-	logger       *logr.Logger
-	cacheDirBase string
-	ghAPIToken   string
+	ctx           context.Context
+	logger        *logr.Logger
+	cacheDirBase  string
+	ghAPIToken    string
+	checkInterval time.Duration
 }
 
 // WithContext specifies a custom context for the Bine instance.
@@ -99,14 +102,25 @@ func WithGitHubAPIToken(token string) Option {
 	}
 }
 
+// WithCheckInterval specifies the minimum interval between starting
+// consecutive upstream version checks.
+func WithCheckInterval(interval time.Duration) Option {
+	return func(o *options) error {
+		if interval < 0 {
+			return errors.New("check interval cannot be negative")
+		}
+		o.checkInterval = interval
+		return nil
+	}
+}
+
 // newBine creates a new Bine instance with the given options.
 func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 	if optsConfig == nil {
 		optsConfig = &options{}
 	}
 
-	client := retryablehttp.NewClient()
-	client.RetryMax = 3
+	client := newRetryClient()
 	stdClient := client.StandardClient()
 
 	config, err := loadConfig(ctx, stdClient, optsConfig.ghAPIToken)
@@ -115,9 +129,10 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 	}
 
 	b := &Bine{
-		client:  stdClient,
-		config:  config,
-		Project: config.Project,
+		client:        stdClient,
+		config:        config,
+		checkInterval: optsConfig.checkInterval,
+		Project:       config.Project,
 	}
 
 	if optsConfig.logger != nil {
@@ -134,6 +149,16 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 	}
 
 	return b, nil
+}
+
+func newRetryClient() *retryablehttp.Client {
+	client := retryablehttp.NewClient()
+	client.RetryMax = 3
+	client.CheckRetry = checkRetry
+	client.Backoff = retryBackoff
+	client.ErrorHandler = retryablehttp.PassthroughErrorHandler
+
+	return client
 }
 
 // cacheDir returns the cache directory for the given project.
@@ -616,6 +641,7 @@ func (b *Bine) List(ctx context.Context, installedOnly, outdatedOnly bool) ([]*L
 
 func (b *Bine) listBins(ctx context.Context, bins []*bin, installedOnly, outdatedOnly bool) ([]*ListItem, error) {
 	var items []*ListItem
+	pacer := newCheckPacer(b.checkInterval)
 
 	for _, bin := range bins {
 		if installedOnly {
@@ -652,6 +678,9 @@ func (b *Bine) listBins(ctx context.Context, bins []*bin, installedOnly, outdate
 			var outdated bool
 			var err error
 			if outdatedCheckError == "" {
+				if err := pacer.Wait(ctx); err != nil {
+					return nil, fmt.Errorf("list: wait between outdated checks: %v", err)
+				}
 				outdated, latestVersion, err = bin.checkOutdated(ctx, resolvedVersion)
 			}
 			if err != nil {

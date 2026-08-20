@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 )
@@ -45,4 +46,13 @@ func TestResolveVerbosity(t *testing.T) {
 			assert.Equal(t, cfg.Verbosity, tt.verbosity)
 		})
 	}
+}
+
+func TestCheckInterval(t *testing.T) {
+	t.Parallel()
+
+	cfg := New(strings.NewReader(""), io.Discard, io.Discard)
+	err := cfg.Command.Parse([]string{"--check-interval=1500ms"})
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.CheckInterval, 1500*time.Millisecond)
 }

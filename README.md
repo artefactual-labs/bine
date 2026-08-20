@@ -259,6 +259,8 @@ Global flags:
 - `--verbosity=N`: Set the log verbosity level explicitly.
 - `--cache-dir`: Override the cache directory location.
 - `--github-api-token`: Provide a GitHub API token for authenticated requests.
+- `--check-interval`: Set the minimum interval between upstream version checks
+  performed by commands such as `list --outdated` and `upgrade`.
 
 ## GitHub REST API rate limiting
 
@@ -300,6 +302,18 @@ bine list --outdated
 
 An explicitly supplied token takes precedence over a credential saved by
 `bine auth login`.
+
+Use `--check-interval` to pace checks across all binary providers. The first
+eligible check starts immediately, and time spent performing a check counts
+toward the interval:
+
+```sh
+bine list --outdated --check-interval=1s
+bine upgrade --check-interval=1s
+```
+
+When GitHub responds with rate-limit information, Bine honors `Retry-After`
+while retrying and reports the reset time when the primary quota is exhausted.
 
 ## Examples
 

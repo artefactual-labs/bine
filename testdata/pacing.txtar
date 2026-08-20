@@ -1,0 +1,9 @@
+# The pacing option is accepted after commands that check upstream versions,
+# and invalid intervals are rejected before project configuration is loaded.
+! bine list --outdated --check-interval=-1s
+stderr 'check interval cannot be negative'
+! stderr 'unknown flag'
+
+! bine upgrade --check-interval=-1s
+stderr 'check interval cannot be negative'
+! stderr 'unknown flag'

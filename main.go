@@ -133,6 +133,7 @@ func build(ctx context.Context, logger logr.Logger, root *rootcmd.RootConfig) (*
 		bine.WithCacheDir(root.CacheDir),
 		bine.WithLogger(logger),
 		bine.WithGitHubAPIToken(githubAPIToken),
+		bine.WithCheckInterval(root.CheckInterval),
 	)
 }
 

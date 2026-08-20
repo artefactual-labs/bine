@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"gotest.tools/v3/assert"
@@ -38,6 +39,13 @@ func TestNewWithOptions(t *testing.T) {
 	listed, err := bine.List(t.Context(), true, false)
 	assert.NilError(t, err)
 	assert.Equal(t, len(listed), 0, "expected no bins to be listed")
+}
+
+func TestWithCheckIntervalRejectsNegativeDuration(t *testing.T) {
+	var opts options
+
+	err := WithCheckInterval(-time.Second)(&opts)
+	assert.Error(t, err, "check interval cannot be negative")
 }
 
 func newForceTestBine(t *testing.T) (*Bine, *bin) {
