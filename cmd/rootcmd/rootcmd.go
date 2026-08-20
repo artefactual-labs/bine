@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/peterbourgon/ff/v4"
@@ -23,6 +24,7 @@ type RootConfig struct {
 	verboseCount   int
 	CacheDir       string
 	GitHubAPIToken string
+	CheckInterval  time.Duration
 	Flags          *ff.FlagSet
 	Command        *ff.Command
 	Bine           *bine.Bine
@@ -40,6 +42,7 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 	cfg.Flags.IntVar(&cfg.Verbosity, 0, "verbosity", 0, "Set the log verbosity level explicitly.")
 	cfg.Flags.StringVar(&cfg.CacheDir, 0, "cache-dir", "", "Path to the cache directory.")
 	cfg.Flags.StringVar(&cfg.GitHubAPIToken, 0, "github-api-token", "", "GitHub API token for authentication.")
+	cfg.Flags.DurationVar(&cfg.CheckInterval, 0, "check-interval", 0, "Minimum interval between upstream version checks.")
 	cfg.Command = &ff.Command{
 		Name:      "bine",
 		ShortHelp: "Simple binary manager for developers.",

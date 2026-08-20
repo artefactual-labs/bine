@@ -290,7 +290,7 @@ func ghLatestVersion(ctx context.Context, client *http.Client, bin *bin, token, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+		return "", githubAPIStatusError(resp)
 	}
 
 	var releases []githubRelease
