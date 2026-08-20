@@ -5,6 +5,7 @@ go 1.25.0
 toolchain go1.26.3
 
 require (
+	github.com/cli/browser v1.3.0
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/renameio/v2 v2.0.2
@@ -14,8 +15,10 @@ require (
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	github.com/rogpeppe/go-internal v1.15.0
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
+	github.com/zalando/go-keyring v0.2.8
 	go.artefactual.dev/tools v0.25.1
 	golang.org/x/mod v0.36.0
+	golang.org/x/oauth2 v0.36.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -25,8 +28,10 @@ require (
 	github.com/bodgit/plumbing v1.3.0 // indirect
 	github.com/bodgit/sevenzip v1.6.1 // indirect
 	github.com/bodgit/windows v1.0.1 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect

@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v4/ffhelp"
 
 	"github.com/artefactual-labs/bine/bine"
+	"github.com/artefactual-labs/bine/internal/auth"
 )
 
 type RootConfig struct {
@@ -25,6 +26,7 @@ type RootConfig struct {
 	Flags          *ff.FlagSet
 	Command        *ff.Command
 	Bine           *bine.Bine
+	Auth           *auth.Manager
 }
 
 func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
@@ -32,6 +34,7 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *RootConfig {
 	cfg.Stdin = stdin
 	cfg.Stdout = stdout
 	cfg.Stderr = stderr
+	cfg.Auth = auth.NewDefaultManager()
 	cfg.Flags = ff.NewFlagSet("bine")
 	cfg.Flags.Value('v', "verbose", (*verbosityCountValue)(&cfg.verboseCount), "Increase log verbosity. Repeat up to -vvv for the highest shorthand level.")
 	cfg.Flags.IntVar(&cfg.Verbosity, 0, "verbosity", 0, "Set the log verbosity level explicitly.")
