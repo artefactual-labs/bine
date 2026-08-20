@@ -1,0 +1,39 @@
+# Auth commands do not require a project configuration.
+bine auth --help
+! stdout .
+stderr 'Manage authentication for external services'
+
+# Unsupported providers fail before beginning network authorization.
+! bine auth login --no-browser gitlab.com
+stderr 'authentication for "gitlab.com" is not supported'
+
+# Auth requires a subcommand.
+! bine auth
+stderr 'auth command requires a subcommand'
+
+# Global flags are accepted after terminal auth subcommands.
+bine auth status --verbosity=0 --help
+! stdout .
+stderr 'Show saved authentication status'
+bine auth logout --verbosity=0 --help
+! stdout .
+stderr 'Remove saved authentication'
+
+# Exercise the complete device flow against the local test provider.
+bine-auth-test auth login --no-browser
+cmp stdout login
+! stderr .
+
+bine-auth-test auth status
+stdout 'github.com: logged in as octocat'
+! stderr .
+
+bine-auth-test auth logout
+stdout 'Logged out of github.com.'
+! stderr .
+
+-- login --
+Your one-time code is: ABCD-EFGH
+Open https://example.com/device to authorize Bine.
+Waiting for authorization...
+Logged in to github.com as octocat.

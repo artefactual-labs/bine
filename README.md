@@ -239,6 +239,9 @@ Use `bine --help` for the full command reference.
 Core subcommands:
 
 - `bine config get <KEY>`: Print a configuration value.
+- `bine auth login [HOST]`: Authenticate with a service in a web browser.
+- `bine auth logout [HOST]`: Remove saved authentication for a service.
+- `bine auth status [HOST]`: Show saved authentication status.
 - `bine env`: Output shell code that adds the project bin directory to `PATH`.
 - `bine get [--force] <NAME>`: Download one binary and print its path.
 - `bine list`: List configured binaries.
@@ -263,13 +266,40 @@ Global flags:
 GitHub repositories. Unauthenticated requests are limited to 60 requests per
 hour.
 
-You can pass a token either with `--github-api-token` or through the
-`BINE_GITHUB_API_TOKEN` environment variable:
+For interactive use, authenticate through GitHub's OAuth device flow:
+
+```sh
+bine auth login github.com
+```
+
+`github.com` is the default host, so `bine auth login` is equivalent. Bine
+prints a one-time code, opens GitHub in your browser, and waits for you to
+approve access. Use `--no-browser` on a headless machine and open the printed
+URL yourself. The OAuth app requests read-only access to public information and
+stores its access token in the operating system's credential store. GitHub
+OAuth app tokens remain active until they are revoked.
+
+Inspect or remove the saved credential with:
+
+```sh
+bine auth status github.com
+bine auth logout github.com
+```
+
+The authentication commands are provider-oriented so additional services can
+be supported in the future. Currently, only `github.com` is supported.
+
+For CI or other non-interactive environments, pass a token either with
+`--github-api-token` or through the `BINE_GITHUB_API_TOKEN` environment
+variable:
 
 ```sh
 export BINE_GITHUB_API_TOKEN=your_token_here
 bine list --outdated
 ```
+
+An explicitly supplied token takes precedence over a credential saved by
+`bine auth login`.
 
 ## Examples
 

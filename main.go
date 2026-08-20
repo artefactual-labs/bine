@@ -14,6 +14,7 @@ import (
 	"go.artefactual.dev/tools/log"
 
 	"github.com/artefactual-labs/bine/bine"
+	"github.com/artefactual-labs/bine/cmd/authcmd"
 	"github.com/artefactual-labs/bine/cmd/configcmd"
 	"github.com/artefactual-labs/bine/cmd/envcmd"
 	"github.com/artefactual-labs/bine/cmd/getcmd"
@@ -25,6 +26,7 @@ import (
 	"github.com/artefactual-labs/bine/cmd/synccmd"
 	"github.com/artefactual-labs/bine/cmd/upgradecmd"
 	"github.com/artefactual-labs/bine/cmd/versioncmd"
+	"github.com/artefactual-labs/bine/internal/auth"
 )
 
 func main() {
@@ -51,19 +53,31 @@ func main() {
 }
 
 func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (err error) {
-	var (
-		root = rootcmd.New(stdin, stdout, stderr)
-		_    = configcmd.New(root)
-		_    = envcmd.New(root)
-		_    = getcmd.New(root)
-		_    = listcmd.New(root)
-		_    = pathcmd.New(root)
-		_    = reinstallcmd.New(root)
-		_    = runcmd.New(root)
-		_    = synccmd.New(root)
-		_    = upgradecmd.New(root)
-		_    = versioncmd.New(root)
-	)
+	return execWithAuthManager(ctx, args, stdin, stdout, stderr, nil)
+}
+
+func execWithAuthManager(
+	ctx context.Context,
+	args []string,
+	stdin io.Reader,
+	stdout, stderr io.Writer,
+	authManager *auth.Manager,
+) (err error) {
+	root := rootcmd.New(stdin, stdout, stderr)
+	if authManager != nil {
+		root.Auth = authManager
+	}
+	authConfig := authcmd.New(root)
+	_ = configcmd.New(root)
+	_ = envcmd.New(root)
+	_ = getcmd.New(root)
+	_ = listcmd.New(root)
+	_ = pathcmd.New(root)
+	_ = reinstallcmd.New(root)
+	_ = runcmd.New(root)
+	_ = synccmd.New(root)
+	_ = upgradecmd.New(root)
+	_ = versioncmd.New(root)
 
 	opts := []ff.Option{
 		ff.WithEnvVarPrefix("BINE"),
@@ -86,10 +100,12 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	}
 
 	logger.V(1).Info("Starting bine.")
-	cmd := root.Command.GetSelected().Name
+	selected := root.Command.GetSelected()
+	cmd := selected.Name
 
-	// Skip building for help/version.
-	if cmd != "version" && cmd != root.Command.Name {
+	// Skip building for help, version, and authentication. Authentication is
+	// global and must work outside a bine project.
+	if cmd != "version" && cmd != root.Command.Name && !commandContains(authConfig.Command, selected) {
 		if b, err := build(ctx, logger, root); err != nil {
 			return err
 		} else {
@@ -107,12 +123,48 @@ func exec(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 }
 
 func build(ctx context.Context, logger logr.Logger, root *rootcmd.RootConfig) (*bine.Bine, error) {
+	githubAPIToken, err := resolveGitHubAPIToken(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
 	return bine.NewWithOptions( //nolint:contextcheck // Use bine.WithContext.
 		bine.WithContext(ctx),
 		bine.WithCacheDir(root.CacheDir),
 		bine.WithLogger(logger),
-		bine.WithGitHubAPIToken(root.GitHubAPIToken),
+		bine.WithGitHubAPIToken(githubAPIToken),
 	)
+}
+
+func resolveGitHubAPIToken(ctx context.Context, root *rootcmd.RootConfig) (string, error) {
+	githubAPIToken := root.GitHubAPIToken
+	if githubAPIToken == "" && root.Auth != nil {
+		token, err := root.Auth.AccessToken(ctx, "github.com")
+		switch {
+		case err == nil:
+			githubAPIToken = token
+		case errors.Is(err, auth.ErrCredentialNotFound), errors.Is(err, auth.ErrCredentialStoreUnavailable):
+			// Authentication is optional. Continue with anonymous access when no
+			// credential exists or the system credential store is unavailable.
+		default:
+			return "", err
+		}
+	}
+
+	return githubAPIToken, nil
+}
+
+func commandContains(parent, selected *ff.Command) bool {
+	if parent == selected {
+		return true
+	}
+	for _, child := range parent.Subcommands {
+		if commandContains(child, selected) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func exitError(err error) int {
