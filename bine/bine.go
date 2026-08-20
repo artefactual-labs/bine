@@ -277,8 +277,7 @@ func (b *Bine) installed(ctx context.Context, bin *bin) (bool, error) {
 	if bin.isLatest() {
 		_, ok, err := b.latestResolvedVersion(ctx, bin)
 		if err != nil {
-			var resolveErr latestVersionResolutionError
-			if errors.As(err, &resolveErr) {
+			if _, ok := errors.AsType[latestVersionResolutionError](err); ok {
 				b.logger.V(1).Info("Could not validate latest-tracking installation; will reinstall.", "bin", bin.Name, "err", err)
 				return false, nil
 			}
@@ -466,8 +465,7 @@ func (b *Bine) forceReinstall(ctx context.Context, bin *bin) error {
 	if bin.isLatest() {
 		resolvedVersion, ok, err := b.latestResolvedVersion(ctx, bin)
 		if err != nil {
-			var resolveErr latestVersionResolutionError
-			if !errors.As(err, &resolveErr) {
+			if _, ok := errors.AsType[latestVersionResolutionError](err); !ok {
 				return err
 			}
 		} else if ok {

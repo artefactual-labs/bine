@@ -20,4 +20,6 @@ formatters:
       no-prefix-comments: true
       custom-order: true
     gofumpt:
-      extra-rules: true
+      group-params: true
+      clothe-returns: true
+      balance-calls: true
