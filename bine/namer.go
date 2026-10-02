@@ -52,25 +52,17 @@ func createNamer(ctx context.Context) (*namer, error) {
 	return &n, nil
 }
 
-func (n *namer) run(bins []*bin) {
-	if n == nil {
-		return
-	}
-	for _, b := range bins {
-		if b.goPkg() {
-			continue
-		}
-		asset := b.AssetPattern
-		asset = strings.ReplaceAll(asset, "{name}", b.Name)
-		asset = strings.ReplaceAll(asset, "{version}", b.unprefixedVersion())
-		asset = strings.ReplaceAll(asset, "{goos}", n.applyModifier(b, "goos", goos))
-		asset = strings.ReplaceAll(asset, "{goarch}", n.applyModifier(b, "goarch", goarch))
-		asset = strings.ReplaceAll(asset, "{os}", n.applyModifier(b, "os", n.unameOS))
-		asset = strings.ReplaceAll(asset, "{arch}", n.applyModifier(b, "arch", n.unameArch))
-		asset = strings.ReplaceAll(asset, "{triple}", n.triple)
+func (n *namer) asset(b *bin) string {
+	asset := b.AssetPattern
+	asset = strings.ReplaceAll(asset, "{name}", b.Name)
+	asset = strings.ReplaceAll(asset, "{version}", b.unprefixedVersion())
+	asset = strings.ReplaceAll(asset, "{goos}", n.applyModifier(b, "goos", goos))
+	asset = strings.ReplaceAll(asset, "{goarch}", n.applyModifier(b, "goarch", goarch))
+	asset = strings.ReplaceAll(asset, "{os}", n.applyModifier(b, "os", n.unameOS))
+	asset = strings.ReplaceAll(asset, "{arch}", n.applyModifier(b, "arch", n.unameArch))
+	asset = strings.ReplaceAll(asset, "{triple}", n.triple)
 
-		b.asset = asset
-	}
+	return asset
 }
 
 // applyModifier applies template variable modifiers if they exist for the

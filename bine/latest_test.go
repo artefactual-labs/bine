@@ -10,16 +10,21 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-type staticProvider struct {
+type staticSource struct {
+	goSource
 	latest string
 	err    error
 }
 
-func (p staticProvider) downloadURL(*bin) (string, error) {
-	return "", nil
+func (p staticSource) install(ctx context.Context, request installRequest, target string) (installResult, error) {
+	return p.goSource.install(ctx, request, target)
 }
 
-func (p staticProvider) latestVersion(context.Context, *bin) (string, error) {
+func (p staticSource) validateMarker(ctx context.Context, b *bin, marker *versionMarkerDocument) (bool, error) {
+	return p.goSource.validateMarker(ctx, b, marker)
+}
+
+func (p staticSource) latestVersion(context.Context, *bin) (string, error) {
 	if p.err != nil {
 		return "", p.err
 	}
@@ -44,7 +49,7 @@ func newLatestTrackingTestBine(t *testing.T, latest string) (*Bine, *bin) {
 		Name:      "tool",
 		GoPackage: "github.com/foo/bar/cmd/tool",
 		Version:   "latest",
-		provider:  staticProvider{latest: latest},
+		source:    staticSource{latest: latest},
 	}
 
 	b.config = &config{
@@ -65,20 +70,28 @@ func writeLatestTrackingBinary(t *testing.T, b *Bine, bin *bin) string {
 	return binPath
 }
 
-func TestInstalledRepairsLatestMarker(t *testing.T) {
-	injectFakeExec(t, "TestHelperProcessGoVersionM")
-
+func TestGetRecoversLatestAfterMarkerFailure(t *testing.T) {
+	injectFakeExec(t, "TestHelperProcessWithSuccess")
 	b, bin := newLatestTrackingTestBine(t, "2.0.0")
-	writeLatestTrackingBinary(t, b, bin)
-	assert.NilError(t, b.markVersion(bin, ""))
-
-	ok, err := b.installed(t.Context(), bin)
+	markerPath := filepath.Join(b.VersionsDir, bin.Name, "latest")
+	installationBlock(t, markerPath)
+	_, err := b.Get(t.Context(), bin.Name)
+	assert.ErrorContains(t, err, markerPath)
+	binPath := filepath.Join(b.BinDir, bin.Name)
+	assert.Equal(t, string(installationRead(t, binPath)), "binary")
+	// Embedded version recovery succeeds even while marker repair is blocked.
+	injectFakeExec(t, "TestHelperProcessGoVersionM")
+	path, err := b.Get(t.Context(), bin.Name)
 	assert.NilError(t, err)
-	assert.Assert(t, ok)
-
+	assert.Equal(t, path, binPath)
+	assert.NilError(t, os.RemoveAll(markerPath))
+	_, err = b.Get(t.Context(), bin.Name)
+	assert.NilError(t, err)
 	marker, err := b.readVersionMarker(bin)
 	assert.NilError(t, err)
 	assert.Equal(t, marker.ResolvedVersion, "1.2.3")
+	assert.Equal(t, bin.Version, "latest")
+	assert.Equal(t, string(installationRead(t, b.config.path)), "{}")
 }
 
 func TestInstalledReturnsFalseWhenLatestVersionCannotBeResolved(t *testing.T) {
@@ -86,7 +99,7 @@ func TestInstalledReturnsFalseWhenLatestVersionCannotBeResolved(t *testing.T) {
 
 	b, bin := newLatestTrackingTestBine(t, "2.0.0")
 	writeLatestTrackingBinary(t, b, bin)
-	assert.NilError(t, b.markVersion(bin, ""))
+	assert.NilError(t, b.markVersion(bin, installResult{}))
 
 	ok, err := b.installed(t.Context(), bin)
 	assert.NilError(t, err)
@@ -98,7 +111,7 @@ func TestGetForceLatestSucceedsWhenResolvedVersionCannotBeDetermined(t *testing.
 
 	b, bin := newLatestTrackingTestBine(t, "2.0.0")
 	binPath := writeLatestTrackingBinary(t, b, bin)
-	assert.NilError(t, b.markVersion(bin, ""))
+	assert.NilError(t, b.markVersion(bin, installResult{}))
 
 	path, err := b.GetForce(t.Context(), bin.Name)
 	assert.NilError(t, err)
@@ -114,7 +127,7 @@ func TestListOutdatedRepairsLatestResolvedVersion(t *testing.T) {
 
 	b, bin := newLatestTrackingTestBine(t, "2.0.0")
 	writeLatestTrackingBinary(t, b, bin)
-	assert.NilError(t, b.markVersion(bin, ""))
+	assert.NilError(t, b.markVersion(bin, installResult{}))
 
 	items, err := b.List(t.Context(), false, true)
 	assert.NilError(t, err)
@@ -168,13 +181,13 @@ func TestListOneScopesOutdatedChecksToTargetBin(t *testing.T) {
 					Name:      "broken",
 					GoPackage: "github.com/foo/bar/cmd/broken",
 					Version:   "1.0.0",
-					provider:  staticProvider{err: errors.New("boom")},
+					source:    staticSource{err: errors.New("boom")},
 				},
 				{
 					Name:      "tool",
 					GoPackage: "github.com/foo/bar/cmd/tool",
 					Version:   "1.0.0",
-					provider:  staticProvider{latest: "2.0.0"},
+					source:    staticSource{latest: "2.0.0"},
 				},
 			},
 		},
@@ -211,13 +224,13 @@ func TestUpgradeOneOnlyUpdatesRequestedBin(t *testing.T) {
 					Name:      "tool",
 					GoPackage: "github.com/foo/bar/cmd/tool",
 					Version:   "1.0.0",
-					provider:  staticProvider{latest: "2.0.0"},
+					source:    staticSource{latest: "2.0.0"},
 				},
 				{
 					Name:      "other",
 					GoPackage: "github.com/foo/bar/cmd/other",
 					Version:   "1.0.0",
-					provider:  staticProvider{latest: "3.0.0"},
+					source:    staticSource{latest: "3.0.0"},
 				},
 			},
 		},

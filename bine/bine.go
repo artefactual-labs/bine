@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -26,7 +25,6 @@ const (
 
 type Bine struct {
 	logger        logr.Logger
-	client        *http.Client
 	config        *config
 	checkInterval time.Duration
 
@@ -123,21 +121,21 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 	client := newRetryClient()
 	stdClient := client.StandardClient()
 
-	config, err := loadConfig(ctx, stdClient, optsConfig.ghAPIToken)
+	logger := logr.Discard()
+	if optsConfig.logger != nil {
+		logger = *optsConfig.logger
+		client.Logger = clientLogger{logger.WithName("client")}
+	}
+	config, err := loadConfig(ctx, sourceFactory{client: stdClient, token: optsConfig.ghAPIToken, logger: logger})
 	if err != nil {
 		return nil, err
 	}
 
 	b := &Bine{
-		client:        stdClient,
 		config:        config,
 		checkInterval: optsConfig.checkInterval,
 		Project:       config.Project,
-	}
-
-	if optsConfig.logger != nil {
-		b.logger = *optsConfig.logger
-		client.Logger = clientLogger{b.logger.WithName("client")}
+		logger:        logger,
 	}
 
 	if cacheDir, err := b.cacheDir(optsConfig.cacheDirBase); err != nil {
@@ -147,7 +145,6 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 		b.BinDir = filepath.Join(cacheDir, "bin")
 		b.VersionsDir = filepath.Join(cacheDir, "versions")
 	}
-
 	return b, nil
 }
 
@@ -233,39 +230,12 @@ func (b *Bine) installVersion(ctx context.Context, bin *bin, versionOverride str
 		return "", fmt.Errorf("failed to create bin directory: %v", err)
 	}
 
-	installBin := bin
-	var resolvedVersion string
-	if versionOverride != "" {
-		clone := *bin
-		clone.Version = versionOverride
-		installBin = &clone
-	}
-
 	binPath := filepath.Join(b.BinDir, bin.Name)
-	if installBin.goPkg() {
-		if err := goInstall(ctx, installBin, b.BinDir); err != nil {
-			return "", fmt.Errorf("failed to install Go tool: %v", err)
-		}
-		// For "latest" bins, resolve the actual installed version so we can
-		// detect upgrades in the future.
-		if bin.isLatest() {
-			if versionOverride != "" {
-				resolvedVersion = strings.TrimPrefix(installBin.usableVersion(), "v")
-			} else {
-				if v, err := goInstalledVersion(ctx, binPath); err != nil {
-					b.logger.V(1).Info("Could not determine installed version for 'latest' tracking.", "bin", bin.Name, "err", err)
-				} else {
-					resolvedVersion = v
-				}
-			}
-		}
-	} else {
-		if err := binInstall(ctx, b.client, installBin, binPath); err != nil {
-			return "", fmt.Errorf("failed to install binary: %v", err)
-		}
+	result, err := bin.source.install(ctx, installRequest{Bin: bin, VersionOverride: versionOverride}, binPath)
+	if err != nil {
+		return "", err
 	}
-
-	if err := b.markVersion(bin, resolvedVersion); err != nil {
+	if err := b.markVersion(bin, result); err != nil {
 		return "", err
 	}
 
@@ -313,6 +283,9 @@ func (b *Bine) installed(ctx context.Context, bin *bin) (bool, error) {
 
 	var marker versionMarkerDocument
 	if err := json.Unmarshal(blob, &marker); err != nil {
+		return false, err
+	}
+	if ok, err := bin.source.validateMarker(ctx, bin, &marker); !ok || err != nil {
 		return false, err
 	}
 
@@ -402,7 +375,7 @@ func (b *Bine) latestResolvedVersion(ctx context.Context, bin *bin) (string, boo
 		return "", true, latestVersionResolutionError{err: fmt.Errorf("resolve installed version: %v", err)}
 	}
 
-	if err := b.markVersion(bin, resolvedVersion); err != nil {
+	if err := b.markVersion(bin, installResult{ResolvedVersion: resolvedVersion}); err != nil {
 		b.logger.V(1).Info("Could not repair latest-tracking version marker.", "bin", bin.Name, "err", err)
 	}
 
@@ -410,9 +383,8 @@ func (b *Bine) latestResolvedVersion(ctx context.Context, bin *bin) (string, boo
 }
 
 // markVersion creates a version marker file for the binary.
-// resolvedVersion is the actual semver installed; it is only set for "latest"
-// bins and is used to detect upgrades.
-func (b *Bine) markVersion(bin *bin, resolvedVersion string) error {
+// The source supplies version tracking.
+func (b *Bine) markVersion(bin *bin, result installResult) error {
 	versionsDir := filepath.Join(b.VersionsDir, bin.Name)
 	versionMarker := filepath.Join(versionsDir, bin.markerVersion())
 
@@ -432,7 +404,7 @@ func (b *Bine) markVersion(bin *bin, resolvedVersion string) error {
 			Algorithm: crypto.SHA256.String(),
 			Value:     sum,
 		},
-		ResolvedVersion: resolvedVersion,
+		ResolvedVersion: result.ResolvedVersion,
 	}
 	data, err := json.MarshalIndent(doc, "", "\t")
 	if err != nil {
@@ -493,6 +465,7 @@ func (b *Bine) Get(ctx context.Context, name string) (string, error) {
 }
 
 // GetForce reinstalls the binary given its name and returns its path.
+// For Go latest, it reinstalls the recovered exact version when available.
 func (b *Bine) GetForce(ctx context.Context, name string) (string, error) {
 	bin, err := b.load(name)
 	if err != nil {
@@ -547,6 +520,7 @@ func (b *Bine) syncBins(ctx context.Context, bins []*bin, force bool) error {
 }
 
 // Sync installs all binaries defined in the configuration.
+// It stops at the first error, retaining earlier progress.
 func (b *Bine) Sync(ctx context.Context) error {
 	return b.syncBins(ctx, b.config.Bins, false)
 }
@@ -561,11 +535,17 @@ func (b *Bine) Reinstall(ctx context.Context) error {
 	return b.SyncForce(ctx)
 }
 
+// Upgrade upgrades all configured binaries.
+// Updated version pins are saved before installation. Failures can leave partial
+// progress.
+// The returned list describes available updates, not completed installations;
+// configuration-write failures return a nil list.
 func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
 	return b.upgradeBins(ctx, b.config.Bins)
 }
 
 // UpgradeOne upgrades a single binary defined in the configuration.
+// It has the same failure semantics as [Bine.Upgrade].
 func (b *Bine) UpgradeOne(ctx context.Context, name string) ([]*ListItem, error) {
 	selected, err := b.load(name)
 	if err != nil {

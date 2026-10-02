@@ -262,6 +262,13 @@ Global flags:
 - `--check-interval`: Set the minimum interval between upstream version checks
   performed by commands such as `list --outdated` and `upgrade`.
 
+## Installation failures
+
+Installations and upgrades can leave partial changes when they fail; earlier
+changes are not rolled back. After fixing the cause, check the versions in your
+configuration and run `bine sync` to retry. If a damaged installation record
+blocks recovery, use `bine get --force <NAME>`.
+
 ## GitHub REST API rate limiting
 
 `bine` uses the GitHub REST API to inspect releases and download binaries from
