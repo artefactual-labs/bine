@@ -48,10 +48,8 @@ func TestNamer(t *testing.T) {
 		n, err := createNamer(t.Context())
 		assert.NilError(t, err)
 
-		bins := []*bin{{AssetPattern: "{triple}"}}
-		n.run(bins)
-
-		t.Log(bins[0].asset)
+		asset := n.asset(&bin{AssetPattern: "{triple}"})
+		assert.Assert(t, asset != "")
 	})
 
 	t.Run("Computes triple without rustc", func(t *testing.T) {
@@ -59,9 +57,7 @@ func TestNamer(t *testing.T) {
 		n, err := createNamer(t.Context())
 		assert.NilError(t, err)
 
-		bins := []*bin{{AssetPattern: "{triple}"}}
-		n.run(bins)
-
-		t.Log(bins[0].asset)
+		asset := n.asset(&bin{AssetPattern: "{triple}"})
+		assert.Assert(t, asset != "")
 	})
 }

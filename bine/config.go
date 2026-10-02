@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -40,15 +39,11 @@ type config struct {
 
 	// format of the configuration file on disk, used during the update process.
 	format configFormat
-
-	// namer is used to compute the asset names. This is set when the config
-	// is loaded and during the update process.
-	namer *namer
 }
 
 // loadConfig loads the configuration file from the current working directory
 // or its parent directories.
-func loadConfig(ctx context.Context, client *http.Client, ghAPIToken string) (*config, error) {
+func loadConfig(ctx context.Context, sources sourceFactory) (*config, error) {
 	curDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current working directory: %w", err)
@@ -76,17 +71,12 @@ func loadConfig(ctx context.Context, client *http.Client, ghAPIToken string) (*c
 		return nil, fmt.Errorf("project name is empty in config file %q", configFile.path)
 	}
 
-	if namer, err := createNamer(ctx); err != nil {
-		return nil, fmt.Errorf("load config namer: %v", err)
-	} else {
-		cfg.namer = namer
-		cfg.namer.run(cfg.Bins)
-	}
-
 	for _, b := range cfg.Bins {
-		if err := b.loadProvider(client, ghAPIToken); err != nil {
-			return nil, fmt.Errorf("load provider for bin %q: %v", b.Name, err)
+		source, err := sources.newSource(ctx, b)
+		if err != nil {
+			return nil, fmt.Errorf("load source for bin %q: %w", b.Name, err)
 		}
+		b.source = source
 	}
 
 	return cfg, nil
@@ -128,7 +118,6 @@ func (c *config) update(updates []*ListItem) error {
 			b.Version = nextVersion
 		}
 	}
-	c.namer.run(c.Bins)
 	return nil
 }
 

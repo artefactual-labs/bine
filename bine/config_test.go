@@ -75,7 +75,7 @@ func TestConfigUpdate(t *testing.T) {
 		tmpDir := fs.NewDir(t, "bine", fs.WithFile(".bine.json", configDoc))
 
 		t.Chdir(tmpDir.Path())
-		cfg, err := loadConfig(t.Context(), nil, "")
+		cfg, err := loadConfig(t.Context(), sourceFactory{})
 		assert.NilError(t, err)
 
 		err = cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
@@ -129,7 +129,7 @@ asset_pattern = "{name}_{version}_{goos}_{goarch}"
 
 	t.Chdir(tmpDir.Path())
 
-	cfg, err := loadConfig(t.Context(), nil, "")
+	cfg, err := loadConfig(t.Context(), sourceFactory{})
 	assert.NilError(t, err)
 	assert.Equal(t, cfg.Project, "test")
 	assert.Equal(t, cfg.path, tmpDir.Join(".bine.toml"))
@@ -165,7 +165,6 @@ asset_pattern = "{name}_{version}_{os}_{arch}.tar.gz"
 		},
 		path:   tmpDir.Join(".bine.toml"),
 		format: configFormatTOML,
-		namer:  &namer{},
 	}
 
 	err := cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
@@ -207,7 +206,6 @@ bins = [
 		},
 		path:   tmpDir.Join(".bine.toml"),
 		format: configFormatTOML,
-		namer:  &namer{},
 	}
 
 	err := cfg.update([]*ListItem{{Name: "perpignan", Latest: "1.1.0"}})
@@ -255,13 +253,13 @@ func TestConfigModifiers(t *testing.T) {
 
 		modifyRuntime(t, "darwin", "arm64")
 
-		cfg, err := loadConfig(t.Context(), nil, "")
+		cfg, err := loadConfig(t.Context(), sourceFactory{})
 		assert.NilError(t, err)
 
 		// grpcurl leverages the modifiers.
 		bin := cfg.Bins[0]
 		{
-			url, err := bin.provider.downloadURL(bin)
+			url, err := bin.source.(*recipeSource).downloadURL(bin)
 			assert.NilError(t, err)
 			assert.Equal(t, url, "https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_osx_arm64.tar.gz")
 		}
@@ -269,7 +267,7 @@ func TestConfigModifiers(t *testing.T) {
 		// perpignan still works without modifiers.
 		bin = cfg.Bins[1]
 		{
-			url, err := bin.provider.downloadURL(bin)
+			url, err := bin.source.(*recipeSource).downloadURL(bin)
 			assert.NilError(t, err)
 			assert.Equal(t, url, "https://github.com/sevein/perpignan/releases/download/v1.0.0/perpignan_1.0.0_darwin_arm64")
 		}

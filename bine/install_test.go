@@ -30,6 +30,11 @@ func TestHelperProcessWithSuccess(t *testing.T) {
 
 	fields := strings.Fields(args)
 	pkgWithVersion := fields[len(fields)-1]
+	if record := os.Getenv("BINE_HELPER_REQUESTED_PACKAGE"); record != "" {
+		if err := os.WriteFile(record, []byte(pkgWithVersion), 0o600); err != nil {
+			os.Exit(1)
+		}
+	}
 	pkg, _, ok := strings.Cut(pkgWithVersion, "@")
 	if !ok {
 		os.Exit(1)

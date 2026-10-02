@@ -1,7 +1,6 @@
 package bine
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,134 +10,10 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
-	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/mholt/archives"
-	"golang.org/x/mod/semver"
 )
-
-// Supporting functions for installing binaries.
-
-// goInstall installs a Go tool using 'go install'.
-func goInstall(ctx context.Context, b *bin, binDir string) error {
-	goBin, err := exec.LookPath("go")
-	if err != nil {
-		return fmt.Errorf("cannot find 'go' command: %v", err)
-	}
-
-	version := b.canonicalVersion()
-	if version == "" {
-		version = "latest"
-	}
-
-	packageName := fmt.Sprintf("%s@%s", b.GoPackage, version)
-
-	binDir, err = filepath.Abs(binDir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for bin directory %s: %v", binDir, err)
-	}
-
-	tmpBinDir, err := os.MkdirTemp(binDir, ".bine-go-install-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temporary bin directory: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tmpBinDir) }()
-
-	cmd := execCommand(ctx, goBin, "install", packageName)
-
-	// Set GOBIN to install the binary there. fakeExecCommand sets cmd.Env so
-	// we can't assume it's empty.
-	cmd.Env = append(cmd.Env, os.Environ()...)
-	cmd.Env = append(cmd.Env, "GOBIN="+tmpBinDir)
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		msg := stderr.String()
-		if msg == "" {
-			msg = "(no stderr output)"
-		}
-		return fmt.Errorf("`go install %s` failed: %v\nstderr: %s", packageName, err, msg)
-	}
-
-	installedPath := filepath.Join(tmpBinDir, defaultGoBinaryName(b.GoPackage))
-	targetPath := filepath.Join(binDir, b.Name)
-	if err := replaceFile(installedPath, targetPath); err != nil {
-		return fmt.Errorf("move installed binary: %v", err)
-	}
-
-	if err := os.Chmod(targetPath, 0o755); err != nil {
-		return fmt.Errorf("chmod installed binary: %v", err)
-	}
-
-	return nil
-}
-
-// goInstalledVersion returns the version of the Go module embedded in a binary
-// by running "go version -m". This is used to determine the resolved version
-// after installing a Go tool with @latest.
-func goInstalledVersion(ctx context.Context, binaryPath string) (string, error) {
-	goBin, err := exec.LookPath("go")
-	if err != nil {
-		return "", fmt.Errorf("cannot find 'go' command: %v", err)
-	}
-
-	cmd := execCommand(ctx, goBin, "version", "-m", binaryPath)
-
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("go version -m: %v", err)
-	}
-
-	// Parse "go version -m" output to find the "mod" line.
-	// Example output:
-	//   /path/to/binary: go1.21.0
-	//           path    github.com/foo/bar/cmd/tool
-	//           mod     github.com/foo/bar      v1.2.3  h1:...
-	for line := range strings.SplitSeq(stdout.String(), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[0] == "mod" {
-			rawVersion := strings.TrimPrefix(fields[2], "v")
-			// Validate that the extracted version is a proper semver.
-			// Versions like "(devel)" or pseudo-versions are not useful for
-			// upgrade comparisons.
-			if semver.Canonical("v"+rawVersion) == "" {
-				return "", fmt.Errorf("non-semver version %q reported by 'go version -m'", fields[2])
-			}
-			return rawVersion, nil
-		}
-	}
-
-	return "", errors.New("could not determine installed version from 'go version -m' output")
-}
-
-func defaultGoBinaryName(pkg string) string {
-	name := path.Base(pkg)
-	for isGoMajorVersionPath(name) {
-		pkg = path.Dir(pkg)
-		name = path.Base(pkg)
-	}
-	if goos == "windows" {
-		return name + ".exe"
-	}
-	return name
-}
-
-func isGoMajorVersionPath(name string) bool {
-	if len(name) < 2 || name[0] != 'v' {
-		return false
-	}
-
-	n, err := strconv.Atoi(name[1:])
-	return err == nil && n >= 2
-}
 
 func replaceFile(src, dst string) error {
 	backupPath := dst + ".old"
@@ -171,59 +46,54 @@ func replaceFile(src, dst string) error {
 	return nil
 }
 
-func binInstall(ctx context.Context, client *http.Client, b *bin, binPath string) error {
-	downloadURL, err := b.provider.downloadURL(b)
+// openDownload starts a download; the caller owns the response body.
+func openDownload(ctx context.Context, client *http.Client, url string) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to generate download URL: %v", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	// Download the asset.
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to download asset from %q: %v", downloadURL, err)
+		return nil, fmt.Errorf("failed to download asset from %q: %w", url, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: status %s (%s)", resp.Status, downloadURL)
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("download failed: status %s (%s)", resp.Status, url)
 	}
-	f, err := os.CreateTemp("", "downloaded-*-"+filepath.Base(downloadURL))
+	return resp.Body, nil
+}
+
+func installRecipe(ctx context.Context, client *http.Client, url, target string) error {
+	body, err := openDownload(ctx, client, url)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(f.Name()) }()
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		_ = f.Close()
+	defer body.Close()
+	file, err := os.CreateTemp("", "downloaded-*-"+filepath.Base(url))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(file.Name())
+	defer file.Close()
+	if _, err := io.Copy(file, body); err != nil {
 		return fmt.Errorf("failed to write to temporary file: %w", err)
 	}
-	defer func() { _ = f.Close() }()
-
-	// Reset file pointer to the beginning so we can extract.
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("failed to reset file pointer: %v", err)
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("failed to reset file pointer: %w", err)
 	}
-
-	tmpBin, err := os.CreateTemp(filepath.Dir(binPath), ".bine-bin-install-*")
+	staged, err := os.CreateTemp(filepath.Dir(target), ".bine-bin-install-*")
 	if err != nil {
-		return fmt.Errorf("create temporary binary: %v", err)
+		return fmt.Errorf("create temporary binary: %w", err)
 	}
-	tmpBinPath := tmpBin.Name()
-	_ = tmpBin.Close()
-	defer func() { _ = os.Remove(tmpBinPath) }()
-
-	if err := extract(ctx, f, tmpBinPath); err != nil {
-		return fmt.Errorf("extract failed: %v", err)
+	stagedPath := staged.Name()
+	_ = staged.Close()
+	defer os.Remove(stagedPath)
+	if err := extract(ctx, file, stagedPath); err != nil {
+		return fmt.Errorf("extract failed: %w", err)
 	}
-
-	if err := replaceFile(tmpBinPath, binPath); err != nil {
-		return fmt.Errorf("move installed binary: %v", err)
+	if err := replaceFile(stagedPath, target); err != nil {
+		return fmt.Errorf("move installed binary: %w", err)
 	}
-
 	return nil
 }
 

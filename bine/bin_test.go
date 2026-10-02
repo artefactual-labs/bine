@@ -92,10 +92,9 @@ func TestGitHubProvider(t *testing.T) {
 			Name:    "perpignan",
 			Version: "1.0.0",
 			URL:     "https://github.com/sevein/perpignan",
-			asset:   "perpignan-linux-amd64",
 		}
 
-		downloadURL, err := provider.downloadURL(bin)
+		downloadURL, err := provider.downloadURL(bin, "perpignan-linux-amd64")
 		assert.NilError(t, err)
 		assert.Equal(t, downloadURL, "https://github.com/sevein/perpignan/releases/download/v1.0.0/perpignan-linux-amd64")
 	})
@@ -148,10 +147,9 @@ func TestArigaProvider(t *testing.T) {
 			Name:    "atlas",
 			Version: "0.31.0",
 			URL:     "https://release.ariga.io/atlas",
-			asset:   "atlas-linux-amd64",
 		}
 
-		downloadURL, err := provider.downloadURL(bin)
+		downloadURL, err := provider.downloadURL(bin, "atlas-linux-amd64")
 		assert.NilError(t, err)
 		assert.Equal(t, downloadURL, "https://release.ariga.io/atlas/atlas-linux-amd64")
 	})
@@ -277,7 +275,7 @@ func TestCheckOutdated(t *testing.T) {
 			Version: version,
 			URL:     "https://github.com/foo/bar",
 		}
-		b.provider = &githubProvider{client: client}
+		b.source = &recipeSource{provider: &githubProvider{client: client}}
 		return b
 	}
 

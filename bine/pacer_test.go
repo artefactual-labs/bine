@@ -58,15 +58,12 @@ func TestCheckPacerHonorsCancellationWhileWaiting(t *testing.T) {
 	assert.Assert(t, errors.Is(err, context.Canceled))
 }
 
-type timedLatestProvider struct {
+type timedLatestSource struct {
+	staticSource
 	calls *[]time.Time
 }
 
-func (p timedLatestProvider) downloadURL(*bin) (string, error) {
-	return "", nil
-}
-
-func (p timedLatestProvider) latestVersion(context.Context, *bin) (string, error) {
+func (p timedLatestSource) latestVersion(context.Context, *bin) (string, error) {
 	*p.calls = append(*p.calls, time.Now())
 
 	return "2.0.0", nil
@@ -75,11 +72,11 @@ func (p timedLatestProvider) latestVersion(context.Context, *bin) (string, error
 func TestListBinsAppliesCheckInterval(t *testing.T) {
 	const interval = 20 * time.Millisecond
 	var calls []time.Time
-	provider := timedLatestProvider{calls: &calls}
+	provider := timedLatestSource{calls: &calls}
 	b := &Bine{checkInterval: interval}
 	bins := []*bin{
-		{Name: "first", Version: "1.0.0", provider: provider},
-		{Name: "second", Version: "1.0.0", provider: provider},
+		{Name: "first", Version: "1.0.0", source: provider},
+		{Name: "second", Version: "1.0.0", source: provider},
 	}
 
 	items, err := b.listBins(t.Context(), bins, false, true)

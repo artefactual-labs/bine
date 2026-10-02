@@ -204,12 +204,14 @@ version = "0.4.0"
 `))
 	t.Chdir(tmpDir.Path())
 
-	cfg, err := loadConfig(t.Context(), nil, "")
+	cfg, err := loadConfig(t.Context(), sourceFactory{})
 	assert.NilError(t, err)
 
 	assert.Equal(t, cfg.Bins[0].URL, "https://github.com/psampaz/go-mod-outdated")
 	assert.Equal(t, cfg.Bins[0].AssetPattern, "{name}_{version}_{os}_{arch}.tar.gz")
-	assert.Assert(t, cfg.Bins[0].asset != "")
+	url, err := cfg.Bins[0].source.(*recipeSource).downloadURL(cfg.Bins[0])
+	assert.NilError(t, err)
+	assert.Assert(t, url != "")
 	assert.Equal(t, cfg.Bins[1].GoPackage, "go.temporal.io/sdk/contrib/tools/workflowcheck")
 	assert.Equal(t, cfg.Bins[1].AssetPattern, "")
 }

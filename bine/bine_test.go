@@ -56,6 +56,7 @@ func newForceTestBine(t *testing.T) (*Bine, *bin) {
 		Name:      "tool",
 		GoPackage: "github.com/foo/bar/cmd/tool",
 		Version:   "1.0.0",
+		source:    &goSource{},
 	}
 
 	return &Bine{
@@ -133,4 +134,17 @@ func TestSyncForceReinstallsExistingBinaries(t *testing.T) {
 	blob, err = os.ReadFile(path)
 	assert.NilError(t, err)
 	assert.Equal(t, string(blob), "binary-3")
+}
+
+func installationRead(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	assert.NilError(t, err)
+	return data
+}
+
+func installationBlock(t *testing.T, path string) {
+	t.Helper()
+	assert.NilError(t, os.MkdirAll(path, 0o700))
+	assert.NilError(t, os.WriteFile(filepath.Join(path, "keep"), nil, 0o600))
 }
