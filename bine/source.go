@@ -42,19 +42,24 @@ func (r installRequest) effectiveBin() *bin {
 
 type installResult struct {
 	ResolvedVersion string
+	ExpectedSHA256  string
+	Packslip        *packslipReceipt
 }
 
 // The factory shares host naming information between recipes. Source creation
-// does not resolve upstream versions.
+// does not resolve releases or access trust storage.
 type sourceFactory struct {
-	client *http.Client
-	token  string
-	logger logr.Logger
-	namer  *namer
+	client   *http.Client
+	token    string
+	logger   logr.Logger
+	stateDir string
+	namer    *namer
 }
 
 func (f *sourceFactory) newSource(ctx context.Context, b *bin) (installationSource, error) {
 	switch {
+	case b.Packslip != nil:
+		return &packslipSource{client: f.client, token: f.token, logger: f.logger, stateDir: f.stateDir}, nil
 	case b.goPkg():
 		return &goSource{client: f.client, logger: f.logger}, nil
 	}

@@ -147,6 +147,104 @@ Each entry in `bins` uses one installation strategy:
 
 - GitHub release assets, using fields such as `url` and `asset_pattern`
 - Go packages, using `go_package`
+- Signed Packslip releases, using `packslip`
+
+### Packslip releases
+
+For a publisher that provides a [Packslip](https://packslip.dev/) manifest, specify
+its project identity in a `packslip` object and an exact version. Both JSON and
+TOML support this structure:
+
+```toml
+[[bins]]
+name = "hk"
+version = "2.4.0"
+packslip = { project = "github.com/jdx/hk" }
+```
+
+`bine` discovers the release, verifies its GitHub Actions signature and Sigstore
+transparency evidence, selects an artifact for the host, and checks its signed
+size and digests before extraction. The declared executable path determines what
+is installed. No filename recipe is needed, and verification failures never fall
+back to an unsigned download.
+
+`name` is the local executable name. Inside `packslip`, optional `command` selects
+a publisher's command when renaming it or choosing from several commands. Without
+`command`, `bine` matches `name`, then accepts a sole declared command; otherwise
+it reports the available commands. Optional `variant` selects a named build;
+omitting it selects only builds without a variant. Monorepo identities may
+include a tool subpath, such as `github.com/owner/repository/tool`.
+
+TOML also allows a separate table, which belongs to the preceding `[[bins]]` entry:
+
+```toml
+[[bins]]
+name = "local-hk"
+version = "2.4.0"
+
+[bins.packslip]
+project = "github.com/jdx/hk"
+command = "hk"
+```
+
+Put common fields such as `name` and `version` before `[bins.packslip]`; subsequent
+fields belong to that table. The equivalent JSON bin entry is:
+
+```json
+{
+  "name": "local-hk",
+  "version": "2.4.0",
+  "packslip": { "project": "github.com/jdx/hk", "command": "hk" }
+}
+```
+
+`packslip.project` is required. Unknown fields inside `packslip` are rejected so
+misspelled selectors cannot silently choose a different executable or build.
+
+A Packslip entry cannot also contain `url`, `go_package`, `asset_pattern`,
+`tag_pattern`, or `modifiers`. `version` must be a complete semantic version,
+optionally prefixed with `v`; `latest` and ranges are not supported. Build metadata
+is preserved. `bine list --outdated` and `bine upgrade` check stable Packslip
+releases. Upgrades verify and install the candidate before updating its version
+in the configuration.
+
+The initial implementation supports standalone executables distributed as raw
+files or in tar, tar.gz/tgz, tar.xz, tar.zst, tar.bz2, and zip archives. It copies
+the selected regular file; distributions requiring adjacent libraries, data, or
+helper executables are outside this installation model. Links are not installed
+as executables. Optional resources such as completions and man pages are not
+installed. Known unmet OS, glibc, and shared-library requirements stop installation;
+unknown checks and missing required commands produce warnings.
+
+Only vendor manifests with GitHub project identities, signed by GitHub Actions
+with repository and owner certificate IDs, are currently supported. Domain
+projects, key signing, repackagers, and supplementary signed release lists are
+not supported. A repository presenting a supplementary list is refused, including
+for pinned versions, so its withdrawal policy is never silently ignored.
+Manifest and artifact downloads must be publicly accessible HTTPS URLs. GitHub
+API credentials are used only for GitHub metadata requests.
+
+Packslip trust is stored separately from installed binaries, in
+`bine/packslip/trust.json` beneath the OS user configuration directory (normally
+`~/.config` on Linux or `~/Library/Application Support` on macOS). Library callers
+can override it with `WithStateDir`. Accepted repository IDs, owner IDs, signing
+workflows, and artifact provenance presence survive cache cleanup and forced
+reinstallation. Unapproved owner/workflow changes, repository replacement, and
+lost provenance are refused. Renames retaining repository and owner IDs keep
+their trust. There is no automatic trust-reset option; review a publisher change
+before deliberately editing the trust record.
+
+Trust is established on first use on each machine; a shared project lockfile is
+not implemented yet. Switching a configured entry to Packslip forces a verified
+installation even when its version is unchanged. Once installed, a matching
+receipt and local checksum allow ordinary runs without upstream requests.
+Trust inspection only reads the existing file; it does not create a lock file or
+require write access. Missing trust requires a fresh verified installation.
+Acceptance rechecks trust under a writer lock and atomically replaces the file
+only when a pin changes, so concurrent inspections see a complete snapshot. A
+forced reinstall checks upstream again. Provenance links are remembered to
+prevent their removal, but the linked build attestations are not independently
+verified.
 
 ### Known binaries
 

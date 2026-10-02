@@ -42,8 +42,8 @@ func (s *goSource) install(ctx context.Context, request installRequest, target s
 	return result, nil
 }
 
-func (s *goSource) validateMarker(_ context.Context, _ *bin, _ *versionMarkerDocument) (bool, error) {
-	return true, nil
+func (s *goSource) validateMarker(_ context.Context, _ *bin, marker *versionMarkerDocument) (bool, error) {
+	return marker.Packslip == nil, nil
 }
 
 // latestVersion retrieves the latest version for a Go package binary.

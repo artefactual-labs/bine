@@ -23,6 +23,9 @@ type bin struct {
 	// Field for go-based installs.
 	GoPackage string `json:"go_package,omitempty" toml:"go_package,omitempty"`
 
+	// Packslip selects a signed release and its executable.
+	Packslip *packslipConfig `json:"packslip,omitempty" toml:"packslip,omitempty"`
+
 	// Allows to apply modifications during variable expansion.
 	Modifiers map[string]map[string]string `json:"modifiers,omitempty" toml:"modifiers,omitempty"`
 
@@ -71,6 +74,9 @@ func (b bin) unprefixedVersion() string {
 // usableVersion falls back to the original version if semver is not available.
 // Useful in contexts where semver is not required, e.g. during downloads.
 func (b bin) usableVersion() string {
+	if b.Packslip != nil {
+		return "v" + strings.TrimPrefix(b.Version, "v")
+	}
 	version := b.canonicalVersion()
 	if version == "" {
 		return b.Version

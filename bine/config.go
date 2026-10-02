@@ -65,6 +65,14 @@ func loadConfig(ctx context.Context, sources sourceFactory) (*config, error) {
 	}
 	cfg.path = configFile.path
 	cfg.format = configFile.format
+	for _, b := range cfg.Bins {
+		if b == nil {
+			return nil, errors.New("null binary entry")
+		}
+		if err := b.validatePackslip(); err != nil {
+			return nil, fmt.Errorf("binary %q: %w", b.Name, err)
+		}
+	}
 	applyLibraryDefaults(cfg)
 
 	if cfg.Project == "" {
@@ -196,6 +204,25 @@ func unmarshalTOMLConfig(b []byte) (*config, error) {
 	var c config
 	if err := toml.Unmarshal(b, &c); err != nil {
 		return nil, err
+	}
+	// Inspect only Packslip keys: global strict decoding would reject legacy
+	// extension fields. A map preserves unknown keys in both TOML table forms.
+	var sections struct {
+		Bins []struct {
+			Packslip map[string]any `toml:"packslip"`
+		} `toml:"bins"`
+	}
+	if err := toml.Unmarshal(b, &sections); err != nil {
+		return nil, err
+	}
+	for _, bin := range sections.Bins {
+		for key := range bin.Packslip {
+			switch key {
+			case "project", "command", "variant":
+			default:
+				return nil, fmt.Errorf("unknown Packslip configuration field %q", key)
+			}
+		}
 	}
 	return &c, nil
 }
