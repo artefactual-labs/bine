@@ -178,20 +178,33 @@ go_package="example.com/tool/v2"
 	assert.Assert(t, strings.Contains(string(config), `version="latest"`))
 }
 
-func TestSourceConstructionAvoidsUnneededHostAccess(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
-	t.Setenv("PATH", "")
-	assert.NilError(t, os.WriteFile(".bine.toml", []byte(`project="test"
-[[bins]]
-name="tool"
+func TestSourceConstructionAvoidsUnneededHostAndTrustAccess(t *testing.T) {
+	for _, tt := range []struct {
+		name, entry string
+	}{
+		{"Go retains precedence over URL", `name="tool"
 version="1.0.0"
 go_package="example.com/tool"
 url="https://github.com/example/tool"
-`), 0o600))
-	b, err := NewWithOptions(WithCacheDir(filepath.Join(dir, "cache")))
-	assert.NilError(t, err)
-	items, err := b.List(t.Context(), false, false)
-	assert.NilError(t, err)
-	assert.Equal(t, len(items), 1)
+`},
+		{"Packslip", `name="hk"
+version="2.4.0"
+packslip={project="github.com/jdx/hk"}
+`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Chdir(dir)
+			t.Setenv("PATH", "")
+			assert.NilError(t, os.WriteFile(".bine.toml", []byte("project='test'\n[[bins]]\n"+tt.entry), 0o600))
+			trustDir := filepath.Join(dir, "trust")
+			b, err := NewWithOptions(WithCacheDir(filepath.Join(dir, "cache")), WithStateDir(trustDir))
+			assert.NilError(t, err)
+			items, err := b.List(t.Context(), false, false)
+			assert.NilError(t, err)
+			assert.Equal(t, len(items), 1)
+			_, err = os.Stat(trustDir)
+			assert.Assert(t, os.IsNotExist(err))
+		})
+	}
 }

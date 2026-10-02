@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -63,6 +64,7 @@ type options struct {
 	ctx           context.Context
 	logger        *logr.Logger
 	cacheDirBase  string
+	stateDir      string
 	ghAPIToken    string
 	checkInterval time.Duration
 }
@@ -88,6 +90,14 @@ func WithLogger(logger logr.Logger) Option {
 func WithCacheDir(path string) Option {
 	return func(o *options) error {
 		o.cacheDirBase = path
+		return nil
+	}
+}
+
+// WithStateDir sets durable Packslip trust storage, independently of the cache.
+func WithStateDir(path string) Option {
+	return func(o *options) error {
+		o.stateDir = path
 		return nil
 	}
 }
@@ -126,7 +136,7 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 		logger = *optsConfig.logger
 		client.Logger = clientLogger{logger.WithName("client")}
 	}
-	config, err := loadConfig(ctx, sourceFactory{client: stdClient, token: optsConfig.ghAPIToken, logger: logger})
+	config, err := loadConfig(ctx, sourceFactory{client: stdClient, token: optsConfig.ghAPIToken, logger: logger, stateDir: optsConfig.stateDir})
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +160,9 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 
 func newRetryClient() *retryablehttp.Client {
 	client := retryablehttp.NewClient()
+	// StandardClient wraps this client in a RoundTripper. Redirects must be
+	// handled by the outer http.Client, where source-specific policies live.
+	client.HTTPClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	client.RetryMax = 3
 	client.CheckRetry = checkRetry
 	client.Backoff = retryBackoff
@@ -309,6 +322,7 @@ func (c versionMarkerChecksum) Matches(sum string) bool {
 
 type versionMarkerDocument struct {
 	Checksum versionMarkerChecksum `json:"checksum"`
+	Packslip *packslipReceipt      `json:"packslip,omitempty"`
 	// ResolvedVersion is the actual version installed for "latest" bins.
 	// It is empty for bins with a pinned version.
 	ResolvedVersion string `json:"resolved_version,omitempty"`
@@ -383,7 +397,7 @@ func (b *Bine) latestResolvedVersion(ctx context.Context, bin *bin) (string, boo
 }
 
 // markVersion creates a version marker file for the binary.
-// The source supplies version tracking.
+// The source supplies version tracking and any evidence bound to installed bytes.
 func (b *Bine) markVersion(bin *bin, result installResult) error {
 	versionsDir := filepath.Join(b.VersionsDir, bin.Name)
 	versionMarker := filepath.Join(versionsDir, bin.markerVersion())
@@ -405,7 +419,12 @@ func (b *Bine) markVersion(bin *bin, result installResult) error {
 			Value:     sum,
 		},
 		ResolvedVersion: result.ResolvedVersion,
+		Packslip:        result.Packslip,
 	}
+	if result.ExpectedSHA256 != "" && sum != result.ExpectedSHA256 {
+		return errors.New("installed executable changed before its version marker was written")
+	}
+
 	data, err := json.MarshalIndent(doc, "", "\t")
 	if err != nil {
 		return fmt.Errorf("json marshal: %v", err)
@@ -536,8 +555,8 @@ func (b *Bine) Reinstall(ctx context.Context) error {
 }
 
 // Upgrade upgrades all configured binaries.
-// Updated version pins are saved before installation. Failures can leave partial
-// progress.
+// Packslip candidates are installed before saving version pins; Go and recipe
+// candidates are installed afterward. Failures can leave partial progress.
 // The returned list describes available updates, not completed installations;
 // configuration-write failures return a nil list.
 func (b *Bine) Upgrade(ctx context.Context) ([]*ListItem, error) {
@@ -579,6 +598,20 @@ func (b *Bine) upgradeBins(ctx context.Context, bins []*bin) ([]*ListItem, error
 	}
 
 	if len(updates) > 0 {
+		// Authenticate and install Packslip upgrades before changing the user's
+		// version pin. A failed download or verification leaves the config intact.
+		for _, item := range updates {
+			for _, bin := range bins {
+				if bin.Name != item.Name || bin.Packslip == nil {
+					continue
+				}
+				candidate := *bin
+				candidate.Version = strings.TrimPrefix(item.Latest, "v")
+				if _, err := b.installVersion(ctx, &candidate, ""); err != nil {
+					return updates, err
+				}
+			}
+		}
 		if err := b.config.update(updates); err != nil {
 			return nil, err
 		}

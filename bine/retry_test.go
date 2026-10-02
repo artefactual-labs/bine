@@ -2,6 +2,7 @@ package bine
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -46,6 +47,27 @@ func TestRetryClientPreservesFinalGitHubRateLimitResponse(t *testing.T) {
 	_, err := ghLatestVersion(context.Background(), client.StandardClient(), &bin{}, "", "foo", "bar")
 	assert.Error(t, err, "GitHub API returned status 403: rate limited; retry after 0s")
 	assert.Equal(t, attempts, 2)
+}
+
+func TestRetryClientHonorsOuterRedirectPolicy(t *testing.T) {
+	retry := newRetryClient()
+	requests := 0
+	retry.HTTPClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Header:     http.Header{"Location": {"http://example.com/insecure"}},
+			Body:       io.NopCloser(strings.NewReader("")),
+			Request:    req,
+		}, nil
+	})
+	client := retry.StandardClient()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return errors.New("redirect refused") }
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/start", nil)
+	assert.NilError(t, err)
+	_, err = client.Do(req)
+	assert.ErrorContains(t, err, "redirect refused")
+	assert.Equal(t, requests, 1)
 }
 
 func TestGitHubAPIStatusErrorReportsPrimaryLimitReset(t *testing.T) {

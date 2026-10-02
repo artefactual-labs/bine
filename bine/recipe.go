@@ -46,8 +46,8 @@ func (s *recipeSource) latestVersion(ctx context.Context, b *bin) (string, error
 	return s.provider.latestVersion(ctx, b)
 }
 
-func (s *recipeSource) validateMarker(_ context.Context, _ *bin, _ *versionMarkerDocument) (bool, error) {
-	return true, nil
+func (s *recipeSource) validateMarker(_ context.Context, _ *bin, marker *versionMarkerDocument) (bool, error) {
+	return marker.Packslip == nil, nil
 }
 
 type githubProvider struct {

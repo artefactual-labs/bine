@@ -1,0 +1,71 @@
+# Packslip configuration and version display do not need network discovery.
+setup .bine.toml
+bine list --json
+stdout '"name": "local-hk"'
+stdout '"version": "v2.4.0\+build.1"'
+! stderr .
+
+# A second installation strategy must never allow an unsigned fallback.
+setup mixed.toml
+! bine list
+stderr 'packslip cannot be combined with url'
+
+# Packslip currently requires an exact version.
+setup latest.toml
+! bine list
+stderr 'packslip requires an exact version'
+
+# Exercise GitHub discovery, Sigstore verification, and a real release download.
+# hk 2.4.0 provides macOS/Linux executables for amd64 and arm64.
+[!darwin] [!linux] skip 'hk download test requires macOS or Linux'
+[!amd64] [!arm64] skip 'hk download test requires amd64 or arm64'
+env XDG_CONFIG_HOME=$WORK/config
+setup download.toml
+bine get local-hk
+cmpenv stdout ../get-local-hk
+! stderr .
+
+# The manifest selects hk, while bine installs it under the configured alias.
+exec $BINE_CACHE_DIR/packslip-test/$GOOS/$GOARCH/bin/local-hk --version
+stdout '^hk 2\.4\.0'
+grep '"packslip":' $BINE_CACHE_DIR/packslip-test/$GOOS/$GOARCH/versions/local-hk/2.4.0
+grep '"project": "github.com/jdx/hk"' $BINE_CACHE_DIR/packslip-test/$GOOS/$GOARCH/versions/local-hk/2.4.0
+grep '"executable_sha256": "[a-f0-9]{64}"' $BINE_CACHE_DIR/packslip-test/$GOOS/$GOARCH/versions/local-hk/2.4.0
+
+# A matching receipt and durable trust permit reuse without upstream access.
+env HTTPS_PROXY=http://127.0.0.1:1
+env HTTP_PROXY=http://127.0.0.1:1
+env NO_PROXY=
+bine get local-hk
+cmpenv stdout ../get-local-hk
+! stderr .
+
+-- .bine.toml --
+project = "packslip-test"
+[[bins]]
+name = "local-hk"
+version = "2.4.0+build.1"
+packslip = { project = "github.com/jdx/hk", command = "hk" }
+-- mixed.toml --
+project = "packslip-test"
+[[bins]]
+name = "hk"
+packslip = { project = "github.com/jdx/hk" }
+url = "https://github.com/jdx/hk"
+version = "2.4.0"
+-- latest.toml --
+project = "packslip-test"
+[[bins]]
+name = "hk"
+packslip = { project = "github.com/jdx/hk" }
+version = "latest"
+-- download.toml --
+project = "packslip-test"
+[[bins]]
+name = "local-hk"
+version = "2.4.0"
+[bins.packslip]
+project = "github.com/jdx/hk"
+command = "hk"
+-- get-local-hk --
+$BINE_CACHE_DIR/packslip-test/$GOOS/$GOARCH/bin/local-hk
