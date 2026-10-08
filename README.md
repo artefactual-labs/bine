@@ -53,7 +53,19 @@ In that setup, invoke it as `go tool bine ...`.
 
 Run `bine init my-project` in your project root to create an empty `.bine.json`.
 Omit the name to use the directory name, or pass `--format toml` for `.bine.toml`.
-Then add tools to the configuration, as shown below.
+Add and install tools from Go packages, signed Packslip releases, or release URLs:
+
+```sh
+bine add govulncheck --go golang.org/x/vuln/cmd/govulncheck
+bine add hk --packslip github.com/jdx/hk
+bine add jq --url https://github.com/jqlang/jq
+```
+
+The default `--version latest` resolves and saves an exact version pin. Use
+`--version 1.2.3` to choose a release or `--no-install` to only save the entry.
+Packslip supports `--command` and `--variant`; URLs without a built-in recipe
+need `--asset-pattern` and may use `--tag-pattern`. Existing entries and comments
+are preserved. You can also edit the configuration directly:
 
 This is the JSON variant (`.bine.json`):
 
@@ -339,6 +351,7 @@ Use `bine --help` for the full command reference.
 Core subcommands:
 
 - `bine init [--format json|toml] [PROJECT]`: Create an empty project configuration.
+- `bine add <NAME> --go PACKAGE|--packslip PROJECT|--url URL [FLAGS]`: Add and install a tool.
 - `bine config get <KEY>`: Print a configuration value.
 - `bine auth login [HOST]`: Authenticate with a service in a web browser.
 - `bine auth logout [HOST]`: Remove saved authentication for a service.

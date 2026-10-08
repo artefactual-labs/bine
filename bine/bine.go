@@ -27,6 +27,7 @@ const (
 type Bine struct {
 	logger        logr.Logger
 	config        *config
+	sources       sourceFactory
 	checkInterval time.Duration
 
 	Project     string // Project name.
@@ -136,13 +137,15 @@ func newBine(ctx context.Context, optsConfig *options) (*Bine, error) {
 		logger = *optsConfig.logger
 		client.Logger = clientLogger{logger.WithName("client")}
 	}
-	config, err := loadConfig(ctx, sourceFactory{client: stdClient, token: optsConfig.ghAPIToken, logger: logger, stateDir: optsConfig.stateDir})
+	sources := sourceFactory{client: stdClient, token: optsConfig.ghAPIToken, logger: logger, stateDir: optsConfig.stateDir}
+	config, err := loadConfig(ctx, sources)
 	if err != nil {
 		return nil, err
 	}
 
 	b := &Bine{
 		config:        config,
+		sources:       sources,
 		checkInterval: optsConfig.checkInterval,
 		Project:       config.Project,
 		logger:        logger,

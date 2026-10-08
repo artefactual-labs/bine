@@ -256,7 +256,13 @@ func newInstallationFixtureForHost(t *testing.T, host packslip.Host, sources ...
 			}
 		}
 	}
-	f.b = &Bine{config: cfg, BinDir: filepath.Join(f.dir, "bin"), VersionsDir: filepath.Join(f.dir, "versions")}
+	sourcesFactory := sourceFactory{client: client, stateDir: f.stateDir}
+	for _, bin := range cfg.Bins {
+		if source, ok := bin.source.(*packslipSource); ok {
+			sourcesFactory.verifyBundle = source.verifyBundle
+		}
+	}
+	f.b = &Bine{config: cfg, sources: sourcesFactory, BinDir: filepath.Join(f.dir, "bin"), VersionsDir: filepath.Join(f.dir, "versions")}
 	return f
 }
 
@@ -278,6 +284,130 @@ func installationBlock(t *testing.T, path string) {
 	t.Helper()
 	assert.NilError(t, os.MkdirAll(path, 0o700))
 	assert.NilError(t, os.WriteFile(filepath.Join(path, "keep"), nil, 0o600))
+}
+
+func TestAdd(t *testing.T) {
+	for _, tc := range []struct {
+		name, source, format, config, version string
+		noInstall                             bool
+	}{
+		{"JSON recipe latest", "recipe", "json", "{\n  // Keep this comment.\n  \"project\": \"test\",\n  \"bins\": []\n}\n", "", false},
+		{"JSON missing bins", "packslip", "json", "{\n  // Keep this comment.\n  \"project\": \"test\"\n}\n", "latest", false},
+		{"JSON null bins", "packslip", "json", "{\"project\":\"test\",\"BINS\":null}", "v1.0.0", true},
+		{"JSON capitalized bins", "packslip", "json", `{"project":"test","Bins":[{"name":"old","version":"1.0.0","go_package":"example.com/old"}]}`, "", false},
+		{"JSON duplicate bins", "packslip", "json", `{"project":"test","bins":[],"bins":[{"name":"old","version":"1.0.0","go_package":"example.com/old"}]}`, "", false},
+		{"TOML empty bins", "packslip", "toml", "project = 'test'\nBINS = [\n  # Keep this comment with a ] bracket.\n]\n", "", false},
+		{"TOML nested table", "recipe", "toml", "project = 'test'\n# Keep this comment.\n[[Bins]]\nname='old'\nversion='1.0.0'\ngo_package='example.com/old'\n[Bins.extra]\nnote='unchanged'\n", "1.0.0", true},
+		{"TOML inline array", "packslip", "toml", "project = 'test'\n# Keep this comment.\nBins = [{name='old', version='1.0.0', go_package='example.com/old', extra={note='a]b', values=[']', ',']}}, # a ] comment\n]\n", "", false},
+		{"TOML duplicate casing", "packslip", "toml", "project = 'test'\nBins = []\nbins = [{name='old', version='1.0.0', go_package='example.com/old'}]\n", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newInstallationFixture(t, tc.source)
+			f.configPath = filepath.Join(f.dir, ".bine."+tc.format)
+			assert.NilError(t, os.Remove(filepath.Join(f.dir, ".bine.toml")))
+			assert.NilError(t, os.WriteFile(f.configPath, []byte(tc.config), 0o600))
+			var err error
+			f.b.config, err = loadConfig(t.Context(), f.b.sources)
+			assert.NilError(t, err)
+			beforeItems, err := f.b.List(t.Context(), false, false)
+			assert.NilError(t, err)
+			opts := AddOptions{Name: "local-tool", Version: tc.version, NoInstall: tc.noInstall}
+			if tc.source == "packslip" {
+				opts.PackslipProject, opts.Command = "github.com/example/tool1", "tool1"
+			} else {
+				opts.URL, opts.AssetPattern = "https://github.com/example/tool1", "tool1"
+			}
+			item, err := f.b.Add(t.Context(), opts)
+			assert.NilError(t, err)
+			version := "2.0.0"
+			if tc.version != "" && tc.version != "latest" {
+				version = "1.0.0"
+			}
+			assert.DeepEqual(t, item, &ListItem{Name: "local-tool", Version: "v" + version})
+			after := installationRead(t, f.configPath)
+			if strings.Contains(tc.config, "Keep this comment") {
+				assert.Assert(t, bytes.Contains(after, []byte("Keep this comment")))
+			}
+			if strings.Contains(tc.config, "name='old'") {
+				assert.Assert(t, bytes.Contains(after, []byte("name='old'")))
+			}
+			if strings.Contains(tc.config, "values=[']', ',']") {
+				assert.Assert(t, bytes.Contains(after, []byte("values=[']', ',']")))
+			}
+			info, err := os.Stat(f.configPath)
+			assert.NilError(t, err)
+			assert.Equal(t, info.Mode().Perm(), os.FileMode(0o600))
+			if tc.noInstall {
+				assert.Equal(t, f.downloads["tool1@"+version], 0)
+				_, err := os.Stat(filepath.Join(f.b.BinDir, "local-tool"))
+				assert.Assert(t, os.IsNotExist(err))
+			}
+			// Reload the saved entry through normal parsing and reuse its marker.
+			f.b.config, err = loadConfig(t.Context(), f.b.sources)
+			assert.NilError(t, err)
+			items, err := f.b.List(t.Context(), false, false)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, items, append(beforeItems, item))
+			tool, err := f.b.load("local-tool")
+			assert.NilError(t, err)
+			assert.Equal(t, tool.Version, version)
+			path, err := f.b.Get(t.Context(), "local-tool")
+			assert.NilError(t, err)
+			assert.Equal(t, string(installationRead(t, path)), "tool1@"+version)
+			assert.Equal(t, f.downloads["tool1@"+version], 1)
+			_, err = f.b.Add(t.Context(), opts)
+			assert.ErrorContains(t, err, "already exists")
+			assert.DeepEqual(t, installationRead(t, f.configPath), after)
+		})
+	}
+}
+
+func TestAddFailureKeepsConfiguration(t *testing.T) {
+	for _, stage := range []string{"download", "marker", "config edit", "conflicting bins"} {
+		t.Run(stage, func(t *testing.T) {
+			f := newInstallationFixture(t, "packslip")
+			before := []byte("project = 'test'\n")
+			if stage == "conflicting bins" {
+				assert.NilError(t, os.Remove(f.configPath))
+				f.configPath = filepath.Join(f.dir, ".bine.json")
+				before = []byte(`{"project":"test","bins":[{"name":"old","version":"1.0.0","go_package":"example.com/old"},{"name":"shadowed","version":"1.0.0","go_package":"example.com/shadowed"}],"Bins":[{"name":"old","version":"1.0.0","go_package":"example.com/old"}]}`)
+			}
+			assert.NilError(t, os.WriteFile(f.configPath, before, 0o600))
+			var err error
+			f.b.config, err = loadConfig(t.Context(), f.b.sources)
+			assert.NilError(t, err)
+			beforeItems, err := f.b.List(t.Context(), false, false)
+			assert.NilError(t, err)
+			want := before
+			switch stage {
+			case "download":
+				f.fail["tool1@2.0.0"] = true
+			case "marker":
+				installationBlock(t, filepath.Join(f.b.VersionsDir, "tool1", "2.0.0"))
+			case "config edit":
+				want = append(bytes.Clone(before), []byte("# Edited during installation.\n")...)
+				f.onDownload = func() { assert.NilError(t, os.WriteFile(f.configPath, want, 0o600)) }
+			}
+			_, err = f.b.Add(t.Context(), AddOptions{Name: "tool1", PackslipProject: "github.com/example/tool1"})
+			assert.Assert(t, err != nil)
+			switch stage {
+			case "config edit":
+				assert.ErrorContains(t, err, "configuration changed")
+			case "conflicting bins":
+				assert.ErrorContains(t, err, "conflicting bins fields")
+				assert.Equal(t, f.downloads["tool1@2.0.0"], 0)
+				_, err := os.Stat(filepath.Join(f.b.BinDir, "tool1"))
+				assert.Assert(t, os.IsNotExist(err))
+			}
+			assert.DeepEqual(t, installationRead(t, f.configPath), want)
+			items, err := f.b.List(t.Context(), false, false)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, items, beforeItems)
+			if stage == "marker" || stage == "config edit" {
+				assert.Equal(t, string(installationRead(t, filepath.Join(f.b.BinDir, "tool1"))), "tool1@2.0.0")
+			}
+		})
+	}
 }
 
 func (f *installationFixture) assertClean(t *testing.T) {

@@ -3,6 +3,7 @@ package bine
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,54 @@ import (
 type goSource struct {
 	client *http.Client
 	logger logr.Logger
+}
+
+// Resolve through Go rather than guessing the module that owns a package.
+// The temporary module isolates this lookup from the project's go.mod and go.work.
+func goResolveVersion(ctx context.Context, packagePath string) (string, error) {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		return "", err
+	}
+	dir, err := os.MkdirTemp("", "bine-go-resolve-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(dir)
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module bine.invalid/resolve\n"), 0o600); err != nil {
+		return "", err
+	}
+	run := func(args ...string) ([]byte, error) {
+		cmd := execCommand(ctx, goBin, args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GOWORK=off", "GO111MODULE=on", "GOFLAGS=")
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if err != nil {
+			// A wrapped exit error would make the CLI skip these diagnostics.
+			return nil, fmt.Errorf("go %s: %v\n%s", strings.Join(args, " "), err, stderr.String())
+		}
+		return out, nil
+	}
+	if _, err := run("get", packagePath+"@latest"); err != nil {
+		return "", err
+	}
+	out, err := run("list", "-json", packagePath)
+	if err != nil {
+		return "", err
+	}
+	var pkg struct {
+		Name   string
+		Module *struct{ Version string }
+	}
+	if err := json.Unmarshal(out, &pkg); err != nil {
+		return "", err
+	}
+	if pkg.Name != "main" || pkg.Module == nil || semver.Canonical(pkg.Module.Version) == "" {
+		return "", errors.New("package must be a Go executable with a resolved module version")
+	}
+	return strings.TrimPrefix(pkg.Module.Version, "v"), nil
 }
 
 func (s *goSource) install(ctx context.Context, request installRequest, target string) (installResult, error) {

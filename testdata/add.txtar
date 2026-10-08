@@ -1,0 +1,112 @@
+setup empty.json
+
+# Invalid arguments and selectors leave the config untouched.
+! bine add
+stderr 'add requires one binary name'
+! bine add one two --go github.com/sevein/perpignan
+stderr 'add requires one binary name'
+! bine add perpignan
+stderr 'exactly one source'
+! bine add perpignan --go github.com/sevein/perpignan --url https://github.com/sevein/perpignan
+stderr 'exactly one source'
+! bine add ../perpignan --go github.com/sevein/perpignan
+stderr 'invalid binary name'
+! bine add perpignan --go github.com/sevein/perpignan --command perpignan
+stderr 'require --packslip'
+! bine add perpignan --go github.com/sevein/perpignan --asset-pattern tool
+stderr 'require --url'
+! bine add perpignan --url https://github.com/sevein/perpignan
+stderr 'asset-pattern is required'
+! bine add perpignan --go github.com/sevein/perpignan --version unknown
+stderr 'invalid version'
+! bine add perpignan --go github.com/sevein/perpignan --version
+stderr 'missing value'
+cmp .bine.json ../empty.json
+
+# A failed Go build does not register the tool.
+! bine add perpignan --go github.com/sevein/perpignan --version 1.0.1
+stderr 'failed to install Go tool'
+cmp .bine.json ../empty.json
+
+# An exact Go pin installs immediately, under the requested local name.
+bine add local-perpignan --go github.com/sevein/perpignan --version v1.0.2
+stdout '^Added local-perpignan v1\.0\.2\.$'
+! stderr .
+bine run local-perpignan
+stdout '^Hello world!$'
+exec go version -m $BINE_CACHE_DIR/add-test/$GOOS/$GOARCH/bin/local-perpignan
+stdout 'mod\tgithub\.com/sevein/perpignan\tv1\.0\.2'
+grep '// Keep this comment.' .bine.json
+
+# Duplicate names are rejected without resolving another source.
+exec cp .bine.json before.json
+! bine add local-perpignan --packslip github.com/example/missing
+stderr 'already exists'
+cmp .bine.json before.json
+
+# Latest Go resolution pins a version without changing the project's go.mod.
+cp ../go.mod go.mod
+bine add configured-perpignan --go github.com/sevein/perpignan --no-install
+stdout '^Added configured-perpignan v[0-9]+\.[0-9]+\.[0-9]+.*\.$'
+! stderr .
+cmp go.mod ../go.mod
+! grep '"version": "latest"' .bine.json
+! exists $BINE_CACHE_DIR/add-test/$GOOS/$GOARCH/bin/configured-perpignan
+bine get configured-perpignan
+stdout '/bin/configured-perpignan'
+! stderr .
+
+# A release recipe also resolves latest and downloads the sevein fixture.
+bine add downloaded-perpignan --url https://github.com/sevein/perpignan --asset-pattern 'perpignan_{version}_{goos}_{goarch}'
+stdout '^Added downloaded-perpignan v[0-9]+\.[0-9]+\.[0-9]+.*\.$'
+! stderr .
+bine run downloaded-perpignan
+stdout '^Hello world!$'
+
+# A built-in recipe supplies its asset naming and platform modifiers.
+bine add jq --url https://github.com/jqlang/jq --version 1.8.0 --no-install
+stdout '^Added jq v1\.8\.0\.$'
+grep '"asset_pattern": "\{name\}-\{goos\}-\{goarch\}"' .bine.json
+! exists $BINE_CACHE_DIR/add-test/$GOOS/$GOARCH/bin/jq
+
+# TOML initialization uses tables for newly added tools, preserving comments.
+setup
+bine init add-test --format toml
+exec sh -c 'echo "# Keep this comment." >> .bine.toml'
+bine add --go github.com/sevein/perpignan --version 1.0.2 --no-install perpignan
+stdout '^Added perpignan v1\.0\.2\.$'
+grep '\[\[bins\]\]' .bine.toml
+grep '# Keep this comment.' .bine.toml
+! exists $BINE_CACHE_DIR/add-test/$GOOS/$GOARCH/bin/perpignan
+bine run perpignan
+stdout '^Hello world!$'
+
+# A custom tag pattern is saved without rewriting the existing table.
+bine add leucate --url https://github.com/sevein/leucate --asset-pattern '{name}_{version}_{goos}_{goarch}' --tag-pattern 'release-{version}' --version 1.0.0 --no-install
+stdout '^Added leucate v1\.0\.0\.$'
+grep 'tag_pattern = .release-\{version\}.' .bine.toml
+bine list
+stdout '^perpignan v1\.0\.2$'
+stdout '^leucate v1\.0\.0$'
+
+# Failed Go version discovery reports the cause and leaves the config untouched.
+exec cp .bine.toml before.toml
+env GOPROXY=off
+env GOMODCACHE=$WORK/missing-go-cache
+! bine add missing-tool --go example.invalid/bine-review-missing --no-install
+stderr 'resolve version for "missing-tool"'
+stderr 'module lookup disabled by GOPROXY=off'
+! stdout .
+cmp .bine.toml before.toml
+! exists $BINE_CACHE_DIR/add-test/$GOOS/$GOARCH/bin/missing-tool
+
+-- empty.json --
+{
+  // Keep this comment.
+  "project": "add-test",
+  "bins": []
+}
+-- go.mod --
+module example.invalid/project
+
+go 1.26.0
