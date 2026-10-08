@@ -1,0 +1,76 @@
+# Creates a config without a preexisting project.
+setup
+bine init my-project
+stdout '^Created \.bine\.json\.$'
+! stderr .
+cmp .bine.json ../expected.json
+bine config get project
+stdout '^my-project$'
+bine list --json
+stdout '^null$'
+
+# Never overwrites either format.
+! bine init replacement
+stderr 'already exists'
+! bine init replacement --format toml
+stderr 'already exists'
+cmp .bine.json ../expected.json
+! exists .bine.toml
+
+# Uses the directory name when no name is supplied.
+setup
+bine init
+bine config get project
+stdout '^project$'
+
+# TOML is usable by the normal commands immediately.
+setup
+bine init toml-project --format toml
+stdout '^Created \.bine\.toml\.$'
+grep '^project = .toml-project.' .bine.toml
+bine list --json
+stdout '^null$'
+! bine init
+stderr 'already exists'
+! exists .bine.json
+
+# Explicit initialization creates a nested project rather than changing its parent.
+mkdir child
+cd child
+bine init child-project
+bine config get project
+stdout '^child-project$'
+cd ..
+bine config get project
+stdout '^toml-project$'
+
+# Flags before the project name and an explicit argument delimiter also work.
+setup
+bine init --format toml -- --project
+bine config get project
+stdout '^--project$'
+
+# Invalid requests leave no configuration behind.
+setup
+! bine init one two
+stderr 'at most one project name'
+! bine init --format yaml
+stderr 'use json or toml'
+! bine init ../outside
+stderr 'invalid project name'
+! bine init ''
+stderr 'project name cannot be empty'
+! exists .bine.json
+! exists .bine.toml
+
+# Even a dangling symlink counts as an existing configuration.
+symlink .bine.toml -> missing.toml
+! bine init
+stderr 'already exists'
+! exists .bine.json
+
+-- expected.json --
+{
+  "project": "my-project",
+  "bins": []
+}
