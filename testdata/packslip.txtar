@@ -20,7 +20,11 @@ stderr 'packslip requires an exact version'
 [!darwin] [!linux] skip 'hk download test requires macOS or Linux'
 [!amd64] [!arm64] skip 'hk download test requires amd64 or arm64'
 env XDG_CONFIG_HOME=$WORK/config
-setup download.toml
+setup empty.toml
+bine add local-hk --packslip github.com/jdx/hk --command hk --version 2.4.0
+stdout '^Added local-hk v2\.4\.0\.$'
+! stderr .
+config download.toml
 bine get local-hk
 cmpenv stdout ../get-local-hk
 ! stderr .
@@ -67,5 +71,7 @@ version = "2.4.0"
 [bins.packslip]
 project = "github.com/jdx/hk"
 command = "hk"
+-- empty.toml --
+project = "packslip-test"
 -- get-local-hk --
 $BINE_CACHE_DIR/packslip-test/$GOOS/$GOARCH/bin/local-hk

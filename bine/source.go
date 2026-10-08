@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+
+	"github.com/artefactual-labs/bine/internal/packslip"
 )
 
 // An installation source retains strategy and dependencies, not bin versions.
@@ -54,12 +56,14 @@ type sourceFactory struct {
 	logger   logr.Logger
 	stateDir string
 	namer    *namer
+	// Shares the resolver's verification seam with offline API tests.
+	verifyBundle func(context.Context, []byte) ([]byte, packslip.Identity, error)
 }
 
 func (f *sourceFactory) newSource(ctx context.Context, b *bin) (installationSource, error) {
 	switch {
 	case b.Packslip != nil:
-		return &packslipSource{client: f.client, token: f.token, logger: f.logger, stateDir: f.stateDir}, nil
+		return &packslipSource{client: f.client, token: f.token, logger: f.logger, stateDir: f.stateDir, verifyBundle: f.verifyBundle}, nil
 	case b.goPkg():
 		return &goSource{client: f.client, logger: f.logger}, nil
 	}

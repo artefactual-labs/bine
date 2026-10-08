@@ -14,6 +14,7 @@ import (
 	"go.artefactual.dev/tools/log"
 
 	"github.com/artefactual-labs/bine/bine"
+	"github.com/artefactual-labs/bine/cmd/addcmd"
 	"github.com/artefactual-labs/bine/cmd/authcmd"
 	"github.com/artefactual-labs/bine/cmd/configcmd"
 	"github.com/artefactual-labs/bine/cmd/envcmd"
@@ -69,6 +70,7 @@ func execWithAuthManager(
 		root.Auth = authManager
 	}
 	authConfig := authcmd.New(root)
+	_ = addcmd.New(root)
 	_ = configcmd.New(root)
 	_ = envcmd.New(root)
 	_ = getcmd.New(root)
