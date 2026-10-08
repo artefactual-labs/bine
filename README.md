@@ -51,7 +51,9 @@ In that setup, invoke it as `go tool bine ...`.
 
 ## Quick start
 
-Create a `.bine.json` or `.bine.toml` file in your project root.
+Run `bine init my-project` in your project root to create an empty `.bine.json`.
+Omit the name to use the directory name, or pass `--format toml` for `.bine.toml`.
+Then add tools to the configuration, as shown below.
 
 This is the JSON variant (`.bine.json`):
 
@@ -336,6 +338,7 @@ Use `bine --help` for the full command reference.
 
 Core subcommands:
 
+- `bine init [--format json|toml] [PROJECT]`: Create an empty project configuration.
 - `bine config get <KEY>`: Print a configuration value.
 - `bine auth login [HOST]`: Authenticate with a service in a web browser.
 - `bine auth logout [HOST]`: Remove saved authentication for a service.

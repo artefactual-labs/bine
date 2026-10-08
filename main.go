@@ -18,6 +18,7 @@ import (
 	"github.com/artefactual-labs/bine/cmd/configcmd"
 	"github.com/artefactual-labs/bine/cmd/envcmd"
 	"github.com/artefactual-labs/bine/cmd/getcmd"
+	"github.com/artefactual-labs/bine/cmd/initcmd"
 	"github.com/artefactual-labs/bine/cmd/listcmd"
 	"github.com/artefactual-labs/bine/cmd/pathcmd"
 	"github.com/artefactual-labs/bine/cmd/reinstallcmd"
@@ -71,6 +72,7 @@ func execWithAuthManager(
 	_ = configcmd.New(root)
 	_ = envcmd.New(root)
 	_ = getcmd.New(root)
+	_ = initcmd.New(root)
 	_ = listcmd.New(root)
 	_ = pathcmd.New(root)
 	_ = reinstallcmd.New(root)
@@ -103,9 +105,8 @@ func execWithAuthManager(
 	selected := root.Command.GetSelected()
 	cmd := selected.Name
 
-	// Skip building for help, version, and authentication. Authentication is
-	// global and must work outside a bine project.
-	if cmd != "version" && cmd != root.Command.Name && !commandContains(authConfig.Command, selected) {
+	// Initialization and global commands work without a project configuration.
+	if cmd != "init" && cmd != "version" && cmd != root.Command.Name && !commandContains(authConfig.Command, selected) {
 		if b, err := build(ctx, logger, root); err != nil {
 			return err
 		} else {
