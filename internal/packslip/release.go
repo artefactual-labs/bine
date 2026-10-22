@@ -42,6 +42,8 @@ type Release struct {
 		Scheme string `json:"scheme"`
 		KeyID  string `json:"key_id"`
 		Issuer string `json:"issuer"`
+		// Parsed for type validation; bine always pins the signing workflow.
+		PinWorkflow *bool `json:"pin_workflow,omitempty"`
 	} `json:"identity"`
 	Source *struct {
 		Repo   string `json:"repo"`
@@ -49,11 +51,14 @@ type Release struct {
 		Tag    string `json:"tag"`
 	} `json:"source"`
 	Resources []struct {
-		Kind    string   `json:"kind"`
-		Asset   string   `json:"asset"`
-		Archive string   `json:"archive"`
-		Repo    string   `json:"repo"`
-		Exec    []string `json:"exec"`
+		Kind    string            `json:"kind"`
+		Asset   string            `json:"asset"`
+		Archive string            `json:"archive"`
+		Repo    string            `json:"repo"`
+		Exec    []string          `json:"exec"`
+		Shell   string            `json:"shell"`
+		Shells  []string          `json:"shells"`
+		Env     map[string]string `json:"env"`
 	} `json:"resources"`
 }
 
@@ -99,8 +104,10 @@ func (e *Executable) UnmarshalJSON(data []byte) error {
 }
 
 var (
-	wordPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]*$`)
-	projectPart = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+	wordPattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]*$`)
+	projectPart     = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+	requiredMinimum = regexp.MustCompile(`^[0-9][A-Za-z0-9.+-]*$`)
+	shellName       = regexp.MustCompile(`^[a-z0-9_-]+$`)
 )
 
 // Project separates a GitHub trust subject into its repository and tool path.
@@ -213,6 +220,7 @@ func (s *Statement) validate() error {
 		subjects[sub.Name] = true
 	}
 	used, platforms := map[string]bool{}, map[string]bool{}
+	providedCommands := map[string]bool{}
 	if len(r.Artifacts) == 0 {
 		return errors.New("packslip release has no artifacts")
 	}
@@ -240,6 +248,7 @@ func (s *Statement) validate() error {
 				return errors.New("invalid or duplicate executable entry")
 			}
 			names[e.Name] = true
+			providedCommands[commandReference(e.Name)] = true
 			if a.Format == "raw" && e.Path != a.Name {
 				return errors.New("raw executable path must match the artifact name")
 			}
@@ -249,9 +258,26 @@ func (s *Statement) validate() error {
 				return errors.New("invalid provenance URL")
 			}
 		}
+	}
+	// Check after collecting all executables, including those in later artifacts.
+	for _, a := range r.Artifacts {
+		libs, commands := map[string]bool{}, map[string]bool{}
+		for _, lib := range a.Requires.Libs {
+			if !requirementName(lib) || libs[lib] {
+				return fmt.Errorf("invalid or duplicate required library %q", lib)
+			}
+			libs[lib] = true
+		}
 		for _, cmd := range a.Requires.Bin {
-			if !CommandName(cmd.Name) {
-				return errors.New("invalid required command")
+			if !requirementName(cmd.Name) || strings.HasSuffix(strings.ToLower(cmd.Name), ".exe") || commands[cmd.Name] {
+				return fmt.Errorf("invalid or duplicate required command %q", cmd.Name)
+			}
+			commands[cmd.Name] = true
+			if cmd.Min != "" && !requiredMinimum.MatchString(cmd.Min) {
+				return fmt.Errorf("invalid minimum version for required command %q", cmd.Name)
+			}
+			if providedCommands[commandReference(cmd.Name)] {
+				return fmt.Errorf("required command %q is provided by this release", cmd.Name)
 			}
 		}
 	}
@@ -270,6 +296,47 @@ func (s *Statement) validate() error {
 		}
 		if count != 1 || resource.Kind == "" {
 			return errors.New("invalid resource source")
+		}
+		if len(resource.Exec) > 0 && !providedCommands[commandReference(resource.Exec[0])] {
+			return errors.New("resource command is not provided by this release")
+		}
+		if len(resource.Env) > 0 && len(resource.Exec) == 0 {
+			return errors.New("resource environment requires exec")
+		}
+		for name := range resource.Env {
+			if name == "" || strings.ContainsAny(name, "=\x00") {
+				return errors.New("invalid resource environment name")
+			}
+		}
+		if resource.Kind == "completion" {
+			if (resource.Shell != "") == (len(resource.Shells) > 0) {
+				return errors.New("completion requires exactly one of shell or shells")
+			}
+			shells := resource.Shells
+			if resource.Shell != "" {
+				shells = []string{resource.Shell}
+			}
+			for _, shell := range shells {
+				if !shellName.MatchString(shell) {
+					return errors.New("invalid completion shell")
+				}
+			}
+			if len(resource.Exec) == 0 {
+				if resource.Shell == "" {
+					return errors.New("static completion requires shell")
+				}
+			} else {
+				placeholder := false
+				for _, arg := range resource.Exec {
+					placeholder = placeholder || strings.Contains(arg, "{shell}")
+				}
+				for _, value := range resource.Env {
+					placeholder = placeholder || strings.Contains(value, "{shell}")
+				}
+				if len(resource.Shells) == 0 || !placeholder {
+					return errors.New("exec completion requires shells and a {shell} placeholder")
+				}
+			}
 		}
 		if resource.Asset != "" {
 			if !subjects[resource.Asset] {
@@ -290,6 +357,19 @@ func (s *Statement) validate() error {
 func validDigest(s string, n int) bool {
 	b, err := hex.DecodeString(s)
 	return err == nil && len(b) == n && strings.ToLower(s) == s
+}
+
+func requirementName(s string) bool {
+	return CommandName(s) && !strings.ContainsAny(s, " \t\r\n")
+}
+
+// Cross-references also accept legacy Windows command names ending in .exe.
+// Keep executable paths and stored names intact.
+func commandReference(name string) string {
+	if strings.HasSuffix(strings.ToLower(name), ".exe") {
+		return name[:len(name)-4]
+	}
+	return name
 }
 
 type Host struct{ OS, Arch, Libc string }
