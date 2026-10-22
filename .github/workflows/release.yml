@@ -19,20 +19,29 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: write
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
 
 concurrency:
   group: release
   cancel-in-progress: false
+  queue: max
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    name: Publish release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write # GoReleaser creates the release and uploads its assets.
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
           fetch-tags: true
       - name: Resolve release version
@@ -45,16 +54,21 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: ./.github/scripts/resolve-release-version.sh
       - name: Create local release tag
-        run: git tag "${{ steps.release.outputs.version }}"
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: git tag "$RELEASE_VERSION"
       - name: Set up Go
         uses: actions/setup-go@v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
       - name: Install Syft
         id: install-syft
         uses: anchore/sbom-action/download-syft@v0.24.2
       - name: Add Syft to PATH
-        run: echo "$(dirname "${{ steps.install-syft.outputs.cmd }}")" >> "$GITHUB_PATH"
+        env:
+          SYFT_COMMAND: ${{ steps.install-syft.outputs.cmd }}
+        run: dirname "$SYFT_COMMAND" >> "$GITHUB_PATH"
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7.2.3
         with:
