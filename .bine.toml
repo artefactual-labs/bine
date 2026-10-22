@@ -16,3 +16,13 @@ version = "0.9.0"
 name = "gotestsum"
 go_package = "gotest.tools/gotestsum"
 version = "1.13.0"
+
+[[bins]]
+name = "jactionlint"
+version = "2.2.0"
+packslip = { project = "github.com/jdx/jactionlint" }
+
+[[bins]]
+name = "gh-actions-lock"
+version = "0.2.0"
+go_package = "github.com/github/gh-actions-lock/cmd/gh-actions-lock"

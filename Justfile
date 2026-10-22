@@ -20,6 +20,18 @@ test *args: (install "gotestsum")
 lint *args="--fix": (install "golangci-lint")
   golangci-lint run {{ args }}
 
+# Lint workflows and Dependabot configuration.
+lint-actions: (install "jactionlint")
+  jactionlint --strict-exit
+
+# Verify action pins against GitHub without changing files.
+check-actions: (install "gh-actions-lock")
+  gh-actions-lock --verify
+
+# Update the lockfile after changing workflow dependencies.
+lock-actions: (install "gh-actions-lock")
+  gh-actions-lock
+
 # Format the code.
 fmt *args: (install "golangci-lint")
   golangci-lint fmt {{ args }}
