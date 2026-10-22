@@ -64,13 +64,13 @@ jobs:
           cache: false
       - name: Install Syft
         id: install-syft
-        uses: anchore/sbom-action/download-syft@v0.24.2
+        uses: anchore/sbom-action/download-syft@v0.24.3
       - name: Add Syft to PATH
         env:
           SYFT_COMMAND: ${{ steps.install-syft.outputs.cmd }}
         run: dirname "$SYFT_COMMAND" >> "$GITHUB_PATH"
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v7.2.3
+        uses: goreleaser/goreleaser-action@v7.3.0
         with:
           version: "~> v2"
           args: release --clean
