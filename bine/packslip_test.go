@@ -5,20 +5,186 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"gotest.tools/v3/assert"
 
 	"github.com/artefactual-labs/bine/internal/packslip"
 )
+
+func TestPackslipRequirementsDoNotExecuteCommands(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "executed")
+	t.Setenv("PACKSLIP_PROBE_MARKER", marker)
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, "dependency"), []byte("#!/bin/sh\nprintf executed > \"$PACKSLIP_PROBE_MARKER\"\n"), 0o755))
+	t.Setenv("PATH", dir)
+	var req packslip.Requirements
+	assert.NilError(t, json.Unmarshal([]byte(`{"bin":[{"name":"dependency","min":"1.0"}]}`), &req))
+	assert.NilError(t, checkPackslipRequirements(t.Context(), packslip.Host{}, req, logr.Discard()))
+	_, err := os.Stat(marker)
+	assert.Assert(t, os.IsNotExist(err), "publisher-selected command was executed")
+}
+
+func TestPackslipRejectsOversizedDownloadBeforeReading(t *testing.T) {
+	size := int64(maxPackslipDownload + 1)
+	r := &packslip.Resolved{Artifact: packslip.Artifact{Size: &size}}
+	// A nil reader would panic if the download were attempted.
+	assert.ErrorContains(t, downloadVerified(io.Discard, nil, r), "download limit")
+}
+
+func TestPackslipOversizedInstallPreservesExistingBinary(t *testing.T) {
+	f := newInstallationFixture(t, "packslip")
+	item := f.b.config.Bins[0]
+	path, err := f.b.Get(t.Context(), item.Name)
+	assert.NilError(t, err)
+	before := installationRead(t, path)
+	trustPath := filepath.Join(f.stateDir, "trust.json")
+	trust := installationRead(t, trustPath)
+	source := item.source.(*packslipSource)
+	verify := source.verifyBundle
+	source.verifyBundle = func(ctx context.Context, data []byte) ([]byte, packslip.Identity, error) {
+		payload, id, err := verify(ctx, data)
+		if err != nil {
+			return nil, id, err
+		}
+		var statement packslip.Statement
+		assert.NilError(t, json.Unmarshal(payload, &statement))
+		size := int64(maxPackslipDownload + 1)
+		statement.Predicate.Artifacts[0].Size = &size
+		return installationJSON(t, statement), id, nil
+	}
+	item.Version = "2.0.0"
+	_, err = f.b.Get(t.Context(), item.Name)
+	assert.ErrorContains(t, err, "download limit")
+	assert.Equal(t, f.downloads[item.Name+"@2.0.0"], 0)
+	assert.DeepEqual(t, installationRead(t, path), before)
+	assert.DeepEqual(t, installationRead(t, trustPath), trust)
+	_, err = os.Stat(filepath.Join(f.b.VersionsDir, item.Name, item.Version))
+	assert.Assert(t, os.IsNotExist(err))
+}
+
+func TestPackslipZIPRejectsExecutableLink(t *testing.T) {
+	src, err := os.CreateTemp(t.TempDir(), "archive")
+	assert.NilError(t, err)
+	defer src.Close()
+	zw := zip.NewWriter(src)
+	header := &zip.FileHeader{Name: "tool"}
+	header.SetMode(os.ModeSymlink | 0o777)
+	w, err := zw.CreateHeader(header)
+	assert.NilError(t, err)
+	_, err = w.Write([]byte("target"))
+	assert.NilError(t, err)
+	assert.NilError(t, zw.Close())
+	dst := filepath.Join(t.TempDir(), "out")
+	assert.NilError(t, os.WriteFile(dst, nil, 0o600))
+	r := &packslip.Resolved{Artifact: packslip.Artifact{Format: "zip"}, Executable: packslip.Executable{Path: "tool"}}
+	assert.ErrorContains(t, extractPackslip(t.Context(), src, dst, r), "must be a regular file")
+}
+
+func TestPackslipExpandedSizeLimits(t *testing.T) {
+	for _, format := range []string{"raw", "tar", "tar.gz", "zip"} {
+		for _, kind := range []string{"within", "at limit", "headers too large", "selected too large", "skipped too large", "total too large"} {
+			if kind == "at limit" && format == "tar.gz" {
+				continue
+			}
+			if kind == "headers too large" && format != "tar.gz" {
+				continue
+			}
+			if format == "raw" && (kind == "skipped too large" || kind == "total too large") {
+				continue
+			}
+			t.Run(format+"/"+kind, func(t *testing.T) {
+				const limit = 4096
+				selected, skipped := 10, 0
+				if kind == "at limit" {
+					selected = limit
+				}
+				if kind == "selected too large" {
+					selected = limit + 1
+				}
+				if kind == "skipped too large" {
+					skipped = limit + 1
+				}
+				if kind == "total too large" {
+					selected, skipped = limit/2+1, limit/2+1
+				}
+				var buf bytes.Buffer
+				switch format {
+				case "raw":
+					buf.Write(bytes.Repeat([]byte("x"), selected))
+				case "zip":
+					zw := zip.NewWriter(&buf)
+					for _, entry := range []struct {
+						name string
+						size int
+					}{{"ignored", skipped}, {"tool", selected}} {
+						w, err := zw.Create(entry.name)
+						assert.NilError(t, err)
+						_, err = w.Write(bytes.Repeat([]byte("x"), entry.size))
+						assert.NilError(t, err)
+					}
+					assert.NilError(t, zw.Close())
+				default:
+					var out io.Writer = &buf
+					var gz *gzip.Writer
+					if format == "tar.gz" {
+						gz = gzip.NewWriter(out)
+						out = gz
+					}
+					tw := tar.NewWriter(out)
+					if kind == "headers too large" {
+						for range 10 {
+							assert.NilError(t, tw.WriteHeader(&tar.Header{Name: "empty", Mode: 0o600}))
+						}
+					}
+					for _, entry := range []struct {
+						name string
+						size int
+					}{{"ignored", skipped}, {"tool", selected}} {
+						assert.NilError(t, tw.WriteHeader(&tar.Header{Name: entry.name, Mode: 0o755, Size: int64(entry.size)}))
+						_, err := tw.Write(bytes.Repeat([]byte("x"), entry.size))
+						assert.NilError(t, err)
+					}
+					assert.NilError(t, tw.Close())
+					if gz != nil {
+						assert.NilError(t, gz.Close())
+					}
+				}
+				src, err := os.CreateTemp(t.TempDir(), "archive")
+				assert.NilError(t, err)
+				defer src.Close()
+				_, err = src.Write(buf.Bytes())
+				assert.NilError(t, err)
+				_, err = src.Seek(0, 0)
+				assert.NilError(t, err)
+				dst := filepath.Join(t.TempDir(), "out")
+				assert.NilError(t, os.WriteFile(dst, nil, 0o600))
+				r := &packslip.Resolved{Artifact: packslip.Artifact{Format: format}, Executable: packslip.Executable{Path: "tool"}}
+				err = extractPackslipLimited(t.Context(), src, dst, r, limit)
+				if kind == "within" || kind == "at limit" {
+					assert.NilError(t, err)
+				} else {
+					assert.ErrorContains(t, err, "expanded size limit")
+				}
+			})
+		}
+	}
+}
 
 func TestPackslipConfig(t *testing.T) {
 	for _, tt := range []struct {

@@ -1,6 +1,7 @@
 package bine
 
 import (
+	"archive/zip"
 	"context"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +18,12 @@ import (
 	"github.com/mholt/archives"
 
 	"github.com/artefactual-labs/bine/internal/packslip"
+)
+
+// Independent of publisher declarations, bound temporary disk use and expansion.
+const (
+	maxPackslipDownload = 512 << 20
+	maxPackslipExpanded = 1 << 30
 )
 
 func (s *packslipSource) install(ctx context.Context, request installRequest, target string) (_ installResult, err error) {
@@ -32,6 +40,9 @@ func (s *packslipSource) install(ctx context.Context, request installRequest, ta
 	release, err := resolver.Resolve(ctx, b.packslipRequest())
 	if err != nil {
 		return installResult{}, fmt.Errorf("resolve artifact: %w", err)
+	}
+	if err := checkPackslipDownloadSize(release.Artifact.Size); err != nil {
+		return installResult{}, err
 	}
 	if err := checkPackslipRequirements(ctx, resolver.Host, release.Artifact.Requires, s.logger); err != nil {
 		return installResult{}, err
@@ -91,8 +102,8 @@ func (s *packslipSource) install(ctx context.Context, request installRequest, ta
 
 func downloadVerified(dst io.Writer, src io.Reader, release *packslip.Resolved) error {
 	size := release.Artifact.Size
-	if size == nil || *size < 0 || *size == int64(^uint64(0)>>1) {
-		return errors.New("invalid artifact size")
+	if err := checkPackslipDownloadSize(size); err != nil {
+		return err
 	}
 	h256, h512 := sha256.New(), sha512.New()
 	n, err := io.Copy(io.MultiWriter(dst, h256, h512), io.LimitReader(src, *size+1))
@@ -111,15 +122,34 @@ func downloadVerified(dst io.Writer, src io.Reader, release *packslip.Resolved) 
 	return nil
 }
 
+func checkPackslipDownloadSize(size *int64) error {
+	if size == nil || *size < 0 {
+		return errors.New("invalid artifact size")
+	}
+	if *size > maxPackslipDownload {
+		return errors.New("packslip artifact exceeds the 512 MiB download limit")
+	}
+	return nil
+}
+
 func extractPackslip(ctx context.Context, src *os.File, destination string, release *packslip.Resolved) error {
+	return extractPackslipLimited(ctx, src, destination, release, maxPackslipExpanded)
+}
+
+func extractPackslipLimited(ctx context.Context, src *os.File, destination string, release *packslip.Resolved, limit int64) error {
+	tooLarge := errors.New("packslip artifact exceeds the expanded size limit")
 	dst, err := os.OpenFile(destination, os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
 	defer dst.Close()
 	if release.Artifact.Format == "raw" {
-		if _, err := io.Copy(dst, src); err != nil {
+		n, err := io.Copy(dst, io.LimitReader(src, limit+1))
+		if err != nil {
 			return err
+		}
+		if n > limit {
+			return tooLarge
 		}
 	} else {
 		var format archives.Extractor
@@ -136,20 +166,33 @@ func extractPackslip(ctx context.Context, src *os.File, destination string, rele
 		case "tar":
 			format = archives.Tar{}
 		case "zip":
-			format = archives.Zip{}
+			// ZIP entries are opened below only after their metadata is checked.
 		default:
 			return errors.New("unsupported Packslip archive format")
 		}
+		var input io.Reader = src
+		var expanded *io.LimitedReader
 		if compression != nil {
-			format = archives.CompressedArchive{Extraction: archives.Tar{}, Compression: compression}
+			reader, err := compression.OpenReader(src)
+			if err != nil {
+				return err
+			}
+			defer reader.Close()
+			expanded = &io.LimitedReader{R: reader, N: limit + 1}
+			input, format = expanded, archives.Tar{}
 		}
 		found := false
-		err := format.Extract(ctx, src, func(ctx context.Context, info archives.FileInfo) error {
+		remaining := limit
+		handle := func(name string, info fs.FileInfo, link string, open func() (io.ReadCloser, error)) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			// Count every entry, including files we skip, before decompressing it.
+			if info.Size() < 0 || info.Size() > remaining {
+				return tooLarge
+			}
+			remaining -= info.Size()
 			// Archives may prefix root-relative names with current-directory components.
-			name := info.NameInArchive
 			for strings.HasPrefix(name, "./") {
 				name = strings.TrimPrefix(name, "./")
 			}
@@ -159,18 +202,44 @@ func extractPackslip(ctx context.Context, src *os.File, destination string, rele
 			if found {
 				return errors.New("duplicate Packslip executable path in archive")
 			}
-			if !info.Mode().IsRegular() || info.LinkTarget != "" {
+			if !info.Mode().IsRegular() || link != "" {
 				return errors.New("packslip executable must be a regular file, not a link")
 			}
 			found = true
-			f, err := info.Open()
+			f, err := open()
 			if err != nil {
 				return err
 			}
 			defer f.Close()
-			_, err = io.Copy(dst, f)
+			n, err := io.Copy(dst, io.LimitReader(f, limit+1))
+			if n > limit {
+				return tooLarge
+			}
 			return err
-		})
+		}
+		if release.Artifact.Format == "zip" {
+			stat, statErr := src.Stat()
+			if statErr != nil {
+				return statErr
+			}
+			zr, zipErr := zip.NewReader(src, stat.Size())
+			if zipErr != nil {
+				return zipErr
+			}
+			for _, file := range zr.File {
+				err = handle(file.Name, file.FileInfo(), "", file.Open)
+				if err != nil {
+					break
+				}
+			}
+		} else {
+			err = format.Extract(ctx, input, func(_ context.Context, info archives.FileInfo) error {
+				return handle(info.NameInArchive, info.FileInfo, info.LinkTarget, func() (io.ReadCloser, error) { return info.Open() })
+			})
+		}
+		if expanded != nil && expanded.N == 0 {
+			return tooLarge
+		}
 		if err != nil {
 			return err
 		}

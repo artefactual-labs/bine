@@ -108,7 +108,7 @@ func checkPackslipRequirements(ctx context.Context, host packslip.Host, req pack
 			continue
 		}
 		if cmd.Min != "" {
-			_ = checkMin(cmd.Name, versionInOutput.FindString(probe(cmd.Name, "--version")), cmd.Min, false)
+			logger.Info("Packslip command version must be checked manually.", "command", cmd.Name, "minimum", cmd.Min)
 		}
 	}
 	return nil

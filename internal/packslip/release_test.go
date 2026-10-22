@@ -2,11 +2,69 @@ package packslip
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 )
+
+func TestUpstreamStatementValidity(t *testing.T) {
+	data, err := os.ReadFile("testdata/statement-validity.json")
+	assert.NilError(t, err)
+	var vectors struct {
+		Cases []struct {
+			Name, Expect string
+			Statement    json.RawMessage
+		}
+	}
+	assert.NilError(t, json.Unmarshal(data, &vectors))
+	assert.Assert(t, len(vectors.Cases) > 0)
+	for _, tc := range vectors.Cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, err := Parse(tc.Statement)
+			switch tc.Expect {
+			case "accept":
+				assert.NilError(t, err)
+			case "reject":
+				assert.Assert(t, err != nil, "accepted invalid upstream statement")
+			default:
+				t.Fatalf("unknown upstream expectation %q", tc.Expect)
+			}
+		})
+	}
+}
+
+func TestParseRequirements(t *testing.T) {
+	for _, tc := range []struct{ name, requirements, want string }{
+		{"valid", `{"libs":["libc.so.6"],"bin":[{"name":"git","min":"2.43.0-rc1+build"}]}`, ""},
+		{"empty", `{}`, ""},
+		{"duplicate library", `{"libs":["libc.so.6","libc.so.6"]}`, "required library"},
+		{"library path", `{"libs":["../libc.so"]}`, "required library"},
+		{"library whitespace", `{"libs":["lib c.so"]}`, "required library"},
+		{"empty library", `{"libs":[""]}`, "required library"},
+		{"duplicate command", `{"bin":[{"name":"git"},{"name":"git"}]}`, "required command"},
+		{"command whitespace", `{"bin":[{"name":"git status"}]}`, "required command"},
+		{"command suffix", `{"bin":[{"name":"git.EXE"}]}`, "required command"},
+		{"command path", `{"bin":[{"name":"../git"}]}`, "required command"},
+		{"minimum prefix", `{"bin":[{"name":"git","min":"v2.0"}]}`, "minimum version"},
+		{"minimum whitespace", `{"bin":[{"name":"git","min":"2.0 --help"}]}`, "minimum version"},
+		{"own command", `{"bin":[{"name":"tool"}]}`, "provided by this release"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sampleStatement()
+			assert.NilError(t, json.Unmarshal([]byte(tc.requirements), &s.Predicate.Artifacts[0].Requires))
+			data, err := json.Marshal(s)
+			assert.NilError(t, err)
+			_, err = Parse(data)
+			if tc.want == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.want)
+			}
+		})
+	}
+}
 
 func sampleStatement() Statement {
 	var s Statement
@@ -44,6 +102,8 @@ func TestParseRelease(t *testing.T) {
 		{"unsafe command", func(s *Statement) { s.Predicate.Artifacts[0].Bin[0].Name = "../tool" }, "executable"},
 		{"HTTP URL", func(s *Statement) { s.Predicate.Artifacts[0].URL = "http://example.com/tool" }, "HTTPS"},
 		{"repackager", func(s *Statement) { s.Predicate.AttestedBy = "repackager" }, "vendor"},
+		{"domain project policy", func(s *Statement) { s.Predicate.Project = "example.com/tool" }, "github.com/owner/repo"},
+		{"key signing policy", func(s *Statement) { s.Predicate.Identity.Scheme = "sigstore-key" }, "vendor"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			s := sampleStatement()
@@ -61,6 +121,67 @@ func TestParseRelease(t *testing.T) {
 	}
 	_, err := Parse([]byte(`{"_type":"a","_type":"b"}`))
 	assert.ErrorContains(t, err, "duplicate")
+}
+
+func TestParseRequiresCommandInLaterArtifact(t *testing.T) {
+	s := sampleStatement()
+	a := s.Predicate.Artifacts[0]
+	a.Name, a.OS = "helper.tar.gz", "linux"
+	a.Bin = []Executable{{Path: "helper", Name: "helper"}}
+	s.Predicate.Artifacts = append(s.Predicate.Artifacts, a)
+	s.Subject = append(s.Subject, Subject{Name: a.Name, Digest: s.Subject[0].Digest})
+	assert.NilError(t, json.Unmarshal([]byte(`{"bin":[{"name":"helper"}]}`), &s.Predicate.Artifacts[0].Requires))
+	data, err := json.Marshal(s)
+	assert.NilError(t, err)
+	_, err = Parse(data)
+	assert.ErrorContains(t, err, "provided by this release")
+}
+
+func TestParseResourceDeclarations(t *testing.T) {
+	for _, tc := range []struct{ name, resource, want string }{
+		{"unknown command", `{"kind":"icon","exec":["other"]}`, "not provided"},
+		{"environment without command", `{"kind":"icon","archive":"icon.svg","env":{"X":"y"}}`, "requires exec"},
+		{"invalid environment", `{"kind":"icon","exec":["tool"],"env":{"A=B":"y"}}`, "environment name"},
+		{"missing shell", `{"kind":"completion","archive":"tool.bash"}`, "exactly one"},
+		{"both shell forms", `{"kind":"completion","shell":"bash","shells":["bash"],"archive":"tool.bash"}`, "exactly one"},
+		{"empty shell", `{"kind":"completion","shells":[""],"exec":["tool","{shell}"]}`, "invalid completion shell"},
+		{"static multiple shells", `{"kind":"completion","shells":["bash"],"archive":"tool.bash"}`, "static completion"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sampleStatement()
+			assert.NilError(t, json.Unmarshal([]byte("["+tc.resource+"]"), &s.Predicate.Resources))
+			data, err := json.Marshal(s)
+			assert.NilError(t, err)
+			_, err = Parse(data)
+			assert.ErrorContains(t, err, tc.want)
+		})
+	}
+}
+
+func TestParseWindowsCommandReferences(t *testing.T) {
+	for _, tc := range []struct{ name, executable, reference string }{
+		{"extension in reference", "tool", "tool.exe"},
+		{"mixed case reference", "tool", "tool.ExE"},
+		{"legacy executable name", "tool.exe", "tool"},
+		{"mixed case executable name", "tool.ExE", "tool"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sampleStatement()
+			s.Predicate.Artifacts[0].Bin = []Executable{{Path: "bin/tool.exe", Name: tc.executable}}
+			assert.NilError(t, json.Unmarshal([]byte(`[{"kind":"completion","shells":["powershell"],"exec":["`+tc.reference+`","{shell}"]}]`), &s.Predicate.Resources))
+			data, err := json.Marshal(s)
+			assert.NilError(t, err)
+			parsed, err := Parse(data)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, parsed.Predicate.Artifacts[0].Bin, s.Predicate.Artifacts[0].Bin)
+
+			assert.NilError(t, json.Unmarshal([]byte(`{"bin":[{"name":"tool"}]}`), &s.Predicate.Artifacts[0].Requires))
+			data, err = json.Marshal(s)
+			assert.NilError(t, err)
+			_, err = Parse(data)
+			assert.ErrorContains(t, err, "provided by this release")
+		})
+	}
 }
 
 func TestSelectArtifactAndCommand(t *testing.T) {
