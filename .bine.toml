@@ -5,14 +5,14 @@ project = "bine"
 [[bins]]
 name = "golangci-lint"
 url = "https://github.com/golangci/golangci-lint"
-version = "2.13.0"
+version = "2.15.0"
 
 [[bins]]
 name = "go-mod-outdated"
-url = "https://github.com/psampaz/go-mod-outdated"
+go_package = "github.com/psampaz/go-mod-outdated"
 version = "0.9.0"
 
 [[bins]]
 name = "gotestsum"
-url = "https://github.com/gotestyourself/gotestsum"
+go_package = "gotest.tools/gotestsum"
 version = "1.13.0"
