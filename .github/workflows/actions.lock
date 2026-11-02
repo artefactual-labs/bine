@@ -13,7 +13,7 @@ workflows:
         - 'actions/setup-go@v7.0.0'
         - 'codecov/codecov-action@v7.1.1'
         - 'extractions/setup-just@v4.0.0'
-        - 'jdx/jactionlint@v2.2.0'
+        - 'jdx/jactionlint@v2.3.0'
 dependencies:
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'
@@ -64,9 +64,9 @@ dependencies:
         commit: 'sha1-a4f02ab5355a589de60d917a659ce617ed19b3de'
         owner_id: 24697112
         repo_id: 209873006
-    'jdx/jactionlint@v2.2.0':
-        ref: 'v2.2.0'
-        commit: 'sha1-1027f0a131ab98bc7e191d995bfa15dbed5bbf8f'
+    'jdx/jactionlint@v2.3.0':
+        ref: 'v2.3.0'
+        commit: 'sha1-a65ab044e916760429068fe5794b8306abdfcbb9'
         owner_id: 216188
         repo_id: 1404951382
         uses:
