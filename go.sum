@@ -436,8 +436,8 @@ github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78/go.mod h1:aL8wCCfTfS
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/zalando/go-keyring v0.2.8 h1:6sD/Ucpl7jNq10rM2pgqTs0sZ9V3qMrqfIIy5YPccHs=
 github.com/zalando/go-keyring v0.2.8/go.mod h1:tsMo+VpRq5NGyKfxoBVjCuMrG47yj8cmakZDO5QGii0=
-go.artefactual.dev/tools v0.27.0 h1:B9lh/55dJlGwcWpIQZGluzXfsZxNGY0yEBITRa7ohPI=
-go.artefactual.dev/tools v0.27.0/go.mod h1:cy2M9DKXOOSSET7kLaglwGw70CJPxXR/qcvyTjavibc=
+go.artefactual.dev/tools v0.27.1 h1:5vgswfh9TIruFJIvuVObFqAizyHkOpTpMGp65avmOzs=
+go.artefactual.dev/tools v0.27.1/go.mod h1:dbdiB/IpytKsPDcpzVKCX+BgNhoGG8g7zm+bhDaevI4=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
 go.opencensus.io v0.22.2/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=
